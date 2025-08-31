@@ -12,47 +12,47 @@ class Administrador {
   // Crear nuevo administrador
   static async create(adminData) {
     const { nombre, email, password } = adminData;
-    
+
     // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     const query = `
-      INSERT INTO administrador (nombre, email, password) 
+      INSERT INTO Administrador (nombre, email, password) 
       VALUES (?, ?, ?)
     `;
-    
+
     const result = await executeQuery(query, [nombre, email, hashedPassword]);
     return result.insertId;
   }
 
   // Obtener todos los administradores
   static async getAll() {
-    const query = 'SELECT id_administrador, nombre, email FROM administrador';
+    const query = 'SELECT id_administrador, nombre, email FROM Administrador';
     const results = await executeQuery(query);
     return results.map(admin => new Administrador(admin));
   }
 
   // Obtener administrador por ID
   static async getById(id) {
-    const query = 'SELECT * FROM administrador WHERE id_administrador = ?';
+    const query = 'SELECT * FROM Administrador WHERE id_administrador = ?';
     const results = await executeQuery(query, [id]);
-    
+
     if (results.length === 0) {
       return null;
     }
-    
+
     return new Administrador(results[0]);
   }
 
   // Obtener administrador por email
   static async getByEmail(email) {
-    const query = 'SELECT * FROM administrador WHERE email = ?';
+    const query = 'SELECT * FROM Administrador WHERE email = ?';
     const results = await executeQuery(query, [email]);
-    
+
     if (results.length === 0) {
       return null;
     }
-    
+
     return new Administrador(results[0]);
   }
 
@@ -64,10 +64,10 @@ class Administrador {
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
-      query = 'UPDATE administrador SET nombre = ?, email = ?, password = ? WHERE id_administrador = ?';
+      query = 'UPDATE Administrador SET nombre = ?, email = ?, password = ? WHERE id_administrador = ?';
       params = [nombre, email, hashedPassword, id];
     } else {
-      query = 'UPDATE administrador SET nombre = ?, email = ? WHERE id_administrador = ?';
+      query = 'UPDATE Administrador SET nombre = ?, email = ? WHERE id_administrador = ?';
       params = [nombre, email, id];
     }
 
@@ -77,7 +77,7 @@ class Administrador {
 
   // Eliminar administrador
   static async delete(id) {
-    const query = 'DELETE FROM administrador WHERE id_administrador = ?';
+    const query = 'DELETE FROM Administrador WHERE id_administrador = ?';
     const result = await executeQuery(query, [id]);
     return result.affectedRows > 0;
   }

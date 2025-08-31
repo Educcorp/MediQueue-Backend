@@ -3,6 +3,7 @@ const router = express.Router();
 
 // Importar rutas
 const authRoutes = require('./authRoutes');
+const administradorRoutes = require('./administradorRoutes');
 const turnoRoutes = require('./turnoRoutes');
 const pacienteRoutes = require('./pacienteRoutes');
 const areaRoutes = require('./areaRoutes');
@@ -61,6 +62,7 @@ router.get('/', (req, res) => {
 
 // Configurar rutas
 router.use('/auth', authRoutes);
+router.use('/administradores', administradorRoutes);
 router.use('/turnos', turnoRoutes);
 router.use('/pacientes', pacienteRoutes);
 router.use('/areas', areaRoutes);

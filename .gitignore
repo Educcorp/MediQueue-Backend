@@ -128,3 +128,4 @@ uploads/
 # Database files (if using SQLite)
 *.sqlite
 *.db
+src/env.txt

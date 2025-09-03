@@ -3,16 +3,14 @@ require('dotenv').config();
 
 // Configuración de conexión a la base de datos
 const dbConfig = {
-  host: process.env.DB_HOST || 'crossover.proxy.rlwy.net',
-  port: process.env.DB_PORT || 24520,
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'eevDQDtoDTFxyFGvZhfioCzGYxZwjMqD',
-  database: process.env.DB_NAME || 'railway',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'mediqueue',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
 };

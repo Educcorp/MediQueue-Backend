@@ -56,6 +56,14 @@ class Administrador {
     return new Administrador(results[0]);
   }
 
+  // Obtener cualquier administrador (el primero por ID)
+  static async getAnyId() {
+    const query = 'SELECT id_administrador FROM Administrador ORDER BY id_administrador ASC LIMIT 1';
+    const results = await executeQuery(query);
+    if (results.length === 0) return null;
+    return results[0].id_administrador;
+  }
+
   // Actualizar administrador
   static async update(id, adminData) {
     const { nombre, email, password } = adminData;

@@ -120,11 +120,6 @@ class Turno {
       JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
       JOIN Area a ON c.id_area = a.id_area
       JOIN Administrador ad ON t.id_administrador = ad.id_administrador
-      FROM Turno t
-      LEFT JOIN Paciente p ON t.id_paciente = p.id_paciente
-      JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
-      JOIN Area a ON c.id_area = a.id_area
-      JOIN Administrador ad ON t.id_administrador = ad.id_administrador
       WHERE t.id_turno = ?
     `;
 

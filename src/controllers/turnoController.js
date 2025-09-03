@@ -291,10 +291,18 @@ const generarTurnoRapido = asyncHandler(async (req, res) => {
     }
 
     // Crear turno sin registro de paciente (paciente invitado)
+    // Usar un administrador existente (el primero disponible)
+    const Administrador = require('../models/Administrador');
+    const anyAdminId = await Administrador.getAnyId();
+
+    if (!anyAdminId) {
+        return responses.error(res, 'No hay administradores registrados para asignar el turno', 400);
+    }
+
     const turnoResult = await Turno.create({
         id_consultorio,
         id_paciente: null,
-        id_administrador: 1 // ID de administrador por defecto para turnos automáticos
+        id_administrador: anyAdminId
     });
 
     // Obtener turno completo
@@ -312,10 +320,25 @@ const generarTurnoRapido = asyncHandler(async (req, res) => {
  * Obtener próximo turno para pantalla pública
  */
 const getProximoTurnoPublico = asyncHandler(async (req, res) => {
-    const proximo = await Turno.getProximoTurnoPublico();
+    let proximo = await Turno.getProximoTurnoPublico();
+
+    // Si no hay "Llamando", devolver el primer "En espera" del día
+    if (!proximo) {
+        const fallbackQuery = `
+            SELECT t.numero_turno, c.numero_consultorio
+            FROM Turno t
+            JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
+            WHERE t.fecha = CURDATE() AND t.estado = 'En espera'
+            ORDER BY t.numero_turno ASC
+            LIMIT 1
+        `;
+        const { executeQuery } = require('../config/database');
+        const results = await executeQuery(fallbackQuery);
+        proximo = results.length > 0 ? results[0] : null;
+    }
 
     if (!proximo) {
-        return responses.success(res, null, 'No hay turno llamándose en este momento');
+        return responses.success(res, null, 'No hay turnos para mostrar');
     }
 
     // Mapear a la forma que espera el frontend

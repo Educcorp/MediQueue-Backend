@@ -308,6 +308,40 @@ const generarTurnoRapido = asyncHandler(async (req, res) => {
     }, 'Turno generado exitosamente');
 });
 
+/**
+ * Obtener próximo turno para pantalla pública
+ */
+const getProximoTurnoPublico = asyncHandler(async (req, res) => {
+    const proximo = await Turno.getProximoTurnoPublico();
+
+    if (!proximo) {
+        return responses.success(res, null, 'No hay turno llamándose en este momento');
+    }
+
+    // Mapear a la forma que espera el frontend
+    const mapped = {
+        id: proximo.numero_turno,
+        consultorio: proximo.numero_consultorio
+    };
+
+    responses.success(res, mapped, 'Próximo turno obtenido exitosamente');
+});
+
+/**
+ * Obtener últimos turnos para pantalla pública
+ */
+const getUltimosTurnosPublicos = asyncHandler(async (req, res) => {
+    const limit = parseInt(req.query.limit, 10) || 6;
+    const ultimos = await Turno.getUltimosTurnosPublicos(limit);
+
+    const mapped = ultimos.map(t => ({
+        id: t.numero_turno,
+        consultorio: t.numero_consultorio
+    }));
+
+    responses.success(res, mapped, 'Últimos turnos obtenidos exitosamente');
+});
+
 module.exports = {
     createTurno,
     createTurnoWithPaciente,
@@ -321,5 +355,7 @@ module.exports = {
     marcarAtendido,
     deleteTurno,
     getEstadisticasDelDia,
-    generarTurnoRapido
+    generarTurnoRapido,
+    getProximoTurnoPublico,
+    getUltimosTurnosPublicos
 };

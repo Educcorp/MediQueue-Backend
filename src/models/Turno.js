@@ -116,10 +116,15 @@ class Turno {
         a.nombre_area,
         ad.nombre as nombre_administrador
       FROM Turno t
-      LEFT JOIN paciente p ON t.id_paciente = p.id_paciente
-      JOIN consultorio c ON t.id_consultorio = c.id_consultorio
-      JOIN area a ON c.id_area = a.id_area
-      JOIN administrador ad ON t.id_administrador = ad.id_administrador
+      LEFT JOIN Paciente p ON t.id_paciente = p.id_paciente
+      JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
+      JOIN Area a ON c.id_area = a.id_area
+      JOIN Administrador ad ON t.id_administrador = ad.id_administrador
+      FROM Turno t
+      LEFT JOIN Paciente p ON t.id_paciente = p.id_paciente
+      JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
+      JOIN Area a ON c.id_area = a.id_area
+      JOIN Administrador ad ON t.id_administrador = ad.id_administrador
       WHERE t.id_turno = ?
     `;
 
@@ -143,10 +148,10 @@ class Turno {
         a.nombre_area,
         ad.nombre as nombre_administrador
       FROM Turno t
-      JOIN paciente p ON t.id_paciente = p.id_paciente
-      JOIN consultorio c ON t.id_consultorio = c.id_consultorio
-      JOIN area a ON c.id_area = a.id_area
-      JOIN administrador ad ON t.id_administrador = ad.id_administrador
+      JOIN Paciente p ON t.id_paciente = p.id_paciente
+      JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
+      JOIN Area a ON c.id_area = a.id_area
+      JOIN Administrador ad ON t.id_administrador = ad.id_administrador
       WHERE t.id_paciente = ?
       ORDER BY t.fecha DESC, t.hora DESC
     `;
@@ -166,9 +171,9 @@ class Turno {
         c.numero_consultorio,
         a.nombre_area
       FROM Turno t
-      LEFT JOIN paciente p ON t.id_paciente = p.id_paciente
-      JOIN consultorio c ON t.id_consultorio = c.id_consultorio
-      JOIN area a ON c.id_area = a.id_area
+      LEFT JOIN Paciente p ON t.id_paciente = p.id_paciente
+      JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
+      JOIN Area a ON c.id_area = a.id_area
       WHERE t.fecha = CURDATE() AND t.estado IN ('En espera', 'Llamando')
       ORDER BY t.numero_turno ASC
     `;
@@ -267,6 +272,44 @@ class Turno {
     const query = 'DELETE FROM Turno WHERE id_turno = ?';
     const result = await executeQuery(query, [id]);
     return result.affectedRows > 0;
+  }
+
+  // Obtener el turno actualmente llamando (público)
+  static async getProximoTurnoPublico() {
+    const query = `
+      SELECT 
+        t.numero_turno,
+        c.numero_consultorio
+      FROM Turno t
+      JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
+      WHERE t.fecha = CURDATE() AND t.estado = 'Llamando'
+      ORDER BY t.numero_turno DESC
+      LIMIT 1
+    `;
+
+    const results = await executeQuery(query);
+    if (results.length === 0) {
+      return null;
+    }
+    return results[0];
+  }
+
+  // Obtener los últimos N turnos llamados/atendidos del día (público)
+  static async getUltimosTurnosPublicos(limit = 6) {
+    const lim = Number.isInteger(limit) && limit > 0 ? limit : 6;
+    const query = `
+      SELECT 
+        t.numero_turno,
+        c.numero_consultorio
+      FROM Turno t
+      JOIN Consultorio c ON t.id_consultorio = c.id_consultorio
+      WHERE t.fecha = CURDATE() AND t.estado IN ('Llamando', 'Atendido')
+      ORDER BY t.numero_turno DESC
+      LIMIT ${lim}
+    `;
+
+    const results = await executeQuery(query);
+    return results;
   }
 }
 

@@ -69,6 +69,24 @@ router.get('/publicos',
 );
 
 /**
+ * @route   GET /api/turnos/proximo
+ * @desc    Obtener próximo turno (pantalla pública)
+ * @access  Public
+ */
+router.get('/proximo',
+  turnoController.getProximoTurnoPublico
+);
+
+/**
+ * @route   GET /api/turnos/ultimos
+ * @desc    Obtener últimos turnos (pantalla pública)
+ * @access  Public
+ */
+router.get('/ultimos',
+  turnoController.getUltimosTurnosPublicos
+);
+
+/**
  * @route   GET /api/turnos/estadisticas
  * @desc    Obtener estadísticas del día
  * @access  Private (Admin)

@@ -90,6 +90,13 @@ class Administrador {
     return result.affectedRows > 0;
   }
 
+  // Verificar si el administrador tiene turnos asociados
+  static async hasTurnos(id) {
+    const query = 'SELECT COUNT(*) as count FROM Turno WHERE id_administrador = ?';
+    const results = await executeQuery(query, [id]);
+    return results[0].count > 0;
+  }
+
   // Verificar contraseña
   async verifyPassword(password) {
     return await bcrypt.compare(password, this.password);

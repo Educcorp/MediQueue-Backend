@@ -16,6 +16,11 @@ const errorHandler = (error, req, res, next) => {
     return responses.error(res, 'Referencia inválida a otro registro', 400);
   }
 
+  // Error de eliminación bloqueada por foreign key
+  if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+    return responses.error(res, 'No se puede eliminar este registro porque tiene datos relacionados', 409);
+  }
+
   // Error de conexión a base de datos
   if (error.code === 'ECONNREFUSED' || error.code === 'ER_ACCESS_DENIED_ERROR') {
     return responses.error(res, 'Error de conexión a la base de datos', 503);

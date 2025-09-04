@@ -85,18 +85,26 @@ const updateAdmin = asyncHandler(async (req, res) => {
  */
 const deleteAdmin = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    
+    // Debug: Verificar qué contiene req.user
+    console.log('req.user:', req.user);
+    console.log('ID a eliminar:', id);
+    
     const currentUserId = req.user.id_administrador;
+    console.log('Current user ID:', currentUserId);
+
+    // Verificar que el administrador existe antes de continuar
+    const existingAdmin = await Administrador.getById(id);
+    if (!existingAdmin) {
+        return responses.notFound(res, 'Administrador no encontrado');
+    }
 
     // No permitir que un administrador se elimine a sí mismo
     if (parseInt(id) === currentUserId) {
         return responses.error(res, 'No puedes eliminar tu propia cuenta', 400);
     }
 
-    // Verificar que el administrador exists
-    const existingAdmin = await Administrador.getById(id);
-    if (!existingAdmin) {
-        return responses.notFound(res, 'Administrador no encontrado');
-    }
+
 
     // Verificar que no sea el único administrador
     const allAdmins = await Administrador.getAll();
@@ -104,14 +112,37 @@ const deleteAdmin = asyncHandler(async (req, res) => {
         return responses.error(res, 'No se puede eliminar el último administrador del sistema', 400);
     }
 
-    // Eliminar administrador
-    const deleted = await Administrador.delete(id);
-
-    if (!deleted) {
-        return responses.error(res, 'No se pudo eliminar el administrador', 400);
+    // Verificar si el administrador tiene turnos asociados
+    // Esto debería hacerse antes de intentar eliminar para dar un mensaje más claro
+    try {
+        const hasTurnos = await Administrador.hasTurnos(id);
+        if (hasTurnos) {
+            return responses.error(res, 'No se puede eliminar este administrador porque tiene turnos asociados', 409);
+        }
+    } catch (checkError) {
+        console.log('Error verificando turnos asociados:', checkError);
+        // Continuar con la eliminación de todas formas
     }
 
-    responses.success(res, null, 'Administrador eliminado exitosamente');
+    // Eliminar administrador
+    try {
+        const deleted = await Administrador.delete(id);
+
+        if (!deleted) {
+            return responses.error(res, 'No se pudo eliminar el administrador', 400);
+        }
+
+        responses.success(res, null, 'Administrador eliminado exitosamente');
+    } catch (deleteError) {
+        console.error('Error eliminando administrador:', deleteError);
+        
+        // Manejo específico de error de foreign key
+        if (deleteError.code === 'ER_ROW_IS_REFERENCED_2') {
+            return responses.error(res, 'No se puede eliminar este administrador porque tiene turnos o datos asociados', 409);
+        }
+        
+        throw deleteError; // Re-lanzar otros errores para que los maneje el errorHandler global
+    }
 });
 
 module.exports = {

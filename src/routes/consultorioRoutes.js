@@ -35,6 +35,15 @@ router.get('/',
 );
 
 /**
+ * @route   GET /api/consultorios/basicos
+ * @desc    Obtener consultorios básicos (para generar turnos)
+ * @access  Public (para generar turnos)
+ */
+router.get('/basicos', 
+  consultorioController.getAllConsultorios
+);
+
+/**
  * @route   GET /api/consultorios/disponibles
  * @desc    Obtener consultorios disponibles (sin turnos en espera o llamando)
  * @access  Private (Admin) / Public (para generar turnos)

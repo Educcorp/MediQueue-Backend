@@ -48,6 +48,15 @@ router.post('/rapido',
 );
 
 /**
+ * @route   POST /api/turnos/publico
+ * @desc    Crear turno con paciente (para usuarios públicos)
+ * @access  Public
+ */
+router.post('/publico',
+  turnoController.createTurnoPublico
+);
+
+/**
  * @route   GET /api/turnos
  * @desc    Obtener todos los turnos con filtros
  * @access  Private (Admin)

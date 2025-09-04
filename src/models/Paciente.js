@@ -15,9 +15,13 @@ class Paciente {
   static async create(pacienteData) {
     const { nombre, apellido, telefono, fecha_nacimiento, password } = pacienteData;
 
-    let hashedPassword = null;
-    if (password) {
+    // Encriptar contraseña si se proporciona
+    let hashedPassword = password;
+    if (password && password !== 'temp_password') {
       hashedPassword = await bcrypt.hash(password, 10);
+    } else {
+      // Para pacientes públicos, usar una contraseña temporal hasheada
+      hashedPassword = await bcrypt.hash('temp_password', 10);
     }
 
     const query = `

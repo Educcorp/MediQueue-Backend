@@ -317,6 +317,74 @@ const generarTurnoRapido = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Crear turno con paciente (para usuarios públicos)
+ */
+const createTurnoPublico = asyncHandler(async (req, res) => {
+    const { id_consultorio, paciente } = req.body;
+
+    console.log('📝 Creando turno público:', { id_consultorio, paciente });
+
+    // Validar datos requeridos
+    if (!id_consultorio) {
+        return responses.error(res, 'ID de consultorio es requerido', 400);
+    }
+
+    if (!paciente || !paciente.nombre || !paciente.apellido || !paciente.telefono) {
+        return responses.error(res, 'Datos de paciente incompletos. Se requieren nombre, apellido y teléfono', 400);
+    }
+
+    // Verificar que el consultorio existe
+    const consultorio = await Consultorio.getById(id_consultorio);
+    if (!consultorio) {
+        return responses.notFound(res, 'Consultorio no encontrado');
+    }
+    console.log('✅ Consultorio encontrado:', consultorio);
+
+    // Para usuarios públicos, siempre crear un nuevo paciente
+    // Esto permite que múltiples usuarios usen el mismo teléfono con diferentes nombres
+    const pacienteData = {
+        nombre: paciente.nombre,
+        apellido: paciente.apellido,
+        telefono: paciente.telefono,
+        fecha_nacimiento: '1990-01-01', // Fecha por defecto (campo es NOT NULL)
+        password: 'temp_password' // Password temporal (campo es NOT NULL)
+    };
+    console.log('👤 Creando nuevo paciente para usuario público:', pacienteData);
+    const pacienteId = await Paciente.create(pacienteData);
+    console.log('✅ Paciente creado con ID:', pacienteId);
+
+    // Usar un administrador existente (el primero disponible)
+    const Administrador = require('../models/Administrador');
+    const anyAdminId = await Administrador.getAnyId();
+
+    if (!anyAdminId) {
+        return responses.error(res, 'No hay administradores registrados para asignar el turno', 400);
+    }
+    console.log('👨‍💼 Administrador asignado:', anyAdminId);
+
+    // Crear turno
+    const turnoData = {
+        id_consultorio,
+        id_paciente: pacienteId,
+        id_administrador: anyAdminId
+    };
+    console.log('🎫 Creando turno:', turnoData);
+    
+    const turnoResult = await Turno.create(turnoData);
+    console.log('✅ Turno creado con ID:', turnoResult.id);
+
+    // Obtener turno completo con información detallada
+    const turnoCompleto = await Turno.getById(turnoResult.id);
+
+    if (!turnoCompleto) {
+        return responses.error(res, 'Error obteniendo información del turno creado', 500);
+    }
+    console.log('✅ Turno completo obtenido:', turnoCompleto);
+
+    responses.created(res, turnoCompleto, 'Paciente registrado y turno creado exitosamente');
+});
+
+/**
  * Obtener próximo turno para pantalla pública
  */
 const getProximoTurnoPublico = asyncHandler(async (req, res) => {
@@ -379,6 +447,7 @@ module.exports = {
     deleteTurno,
     getEstadisticasDelDia,
     generarTurnoRapido,
+    createTurnoPublico,
     getProximoTurnoPublico,
     getUltimosTurnosPublicos
 };

@@ -25,8 +25,11 @@ const initDatabase = async () => {
       { numero: 1, area: 'Medicina General' },
       { numero: 2, area: 'Medicina General' },
       { numero: 1, area: 'Pediatría' },
+      { numero: 2, area: 'Pediatría' },
       { numero: 1, area: 'Cardiología' },
-      { numero: 1, area: 'Dermatología' }
+      { numero: 2, area: 'Cardiología' },
+      { numero: 1, area: 'Dermatología' },
+      { numero: 2, area: 'Dermatología' }
     ];
 
     for (const consultorio of consultoriosData) {
@@ -52,14 +55,14 @@ const initDatabase = async () => {
       FROM Consultorio c 
       JOIN Area a ON c.id_area = a.id_area
     `);
-    
+
     const administradores = await executeQuery('SELECT * FROM Administrador');
 
     console.log('✅ Base de datos inicializada correctamente:');
     console.log(`📊 Áreas: ${areas.length}`);
     console.log(`🏥 Consultorios: ${consultorios.length}`);
     console.log(`👤 Administradores: ${administradores.length}`);
-    
+
     console.log('\n📋 Consultorios disponibles:');
     consultorios.forEach(c => {
       console.log(`  - Consultorio ${c.numero_consultorio} (${c.nombre_area})`);

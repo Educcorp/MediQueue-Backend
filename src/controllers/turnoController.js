@@ -282,7 +282,7 @@ const getEstadisticasDelDia = asyncHandler(async (req, res) => {
  * Generar turno rápido (para pantalla de usuario)
  */
 const generarTurnoRapido = asyncHandler(async (req, res) => {
-    const { id_consultorio, nombre_paciente } = req.body;
+    const { id_consultorio } = req.body;
 
     // Verificar que el consultorio existe y está disponible
     const consultorio = await Consultorio.getById(id_consultorio);
@@ -290,7 +290,7 @@ const generarTurnoRapido = asyncHandler(async (req, res) => {
         return responses.notFound(res, 'Consultorio no encontrado');
     }
 
-    // Crear turno sin registro de paciente (paciente invitado)
+    // Crear paciente placeholder en caso de que la columna id_paciente sea NOT NULL
     // Usar un administrador existente (el primero disponible)
     const Administrador = require('../models/Administrador');
     const anyAdminId = await Administrador.getAnyId();
@@ -299,9 +299,18 @@ const generarTurnoRapido = asyncHandler(async (req, res) => {
         return responses.error(res, 'No hay administradores registrados para asignar el turno', 400);
     }
 
+    // Crear paciente "Invitado" con datos mínimos válidos
+    const placeholderPacienteId = await Paciente.create({
+        nombre: 'Invitado',
+        apellido: 'Sin datos',
+        telefono: null,
+        fecha_nacimiento: '1990-01-01',
+        password: 'temp_password'
+    });
+
     const turnoResult = await Turno.create({
         id_consultorio,
-        id_paciente: null,
+        id_paciente: placeholderPacienteId,
         id_administrador: anyAdminId
     });
 
@@ -369,7 +378,7 @@ const createTurnoPublico = asyncHandler(async (req, res) => {
         id_administrador: anyAdminId
     };
     console.log('🎫 Creando turno:', turnoData);
-    
+
     const turnoResult = await Turno.create(turnoData);
     console.log('✅ Turno creado con ID:', turnoResult.id);
 

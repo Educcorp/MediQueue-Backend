@@ -145,15 +145,15 @@ const createTurnoWithPacienteValidation = [
       const fecha = new Date(value);
       const hoy = new Date();
       const edad = hoy.getFullYear() - fecha.getFullYear();
-      
+
       if (fecha > hoy) {
         throw new Error('La fecha de nacimiento no puede ser futura');
       }
-      
+
       if (edad > 120) {
         throw new Error('La edad no puede ser mayor a 120 años');
       }
-      
+
       return true;
     }),
 
@@ -258,11 +258,11 @@ const getTurnosByDateRangeValidation = [
     .custom((value, { req }) => {
       const fechaInicio = new Date(req.query.fecha_inicio);
       const fechaFin = new Date(value);
-      
+
       if (fechaFin < fechaInicio) {
         throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio');
       }
-      
+
       return true;
     }),
 

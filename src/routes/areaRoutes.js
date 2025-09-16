@@ -4,9 +4,9 @@ const router = express.Router();
 const areaController = require('../controllers/areaController');
 const { verifyToken, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
-const { 
-  createAreaValidation, 
-  updateAreaValidation, 
+const {
+  createAreaValidation,
+  updateAreaValidation,
   getAreaValidation,
   searchAreaValidation,
   getEstadisticasPorFechaValidation
@@ -17,7 +17,7 @@ const {
  * @desc    Crear una nueva área
  * @access  Private (Admin)
  */
-router.post('/', 
+router.post('/',
   verifyToken,
   requireAdmin,
   createAreaValidation,
@@ -30,7 +30,7 @@ router.post('/',
  * @desc    Obtener todas las áreas activas
  * @access  Private (Admin)
  */
-router.get('/', 
+router.get('/',
   verifyToken,
   requireAdmin,
   areaController.getAllAreas
@@ -52,7 +52,7 @@ router.get('/all',
  * @desc    Obtener áreas con información básica (para selects)
  * @access  Public (para generar turnos)
  */
-router.get('/basicas', 
+router.get('/basicas',
   areaController.getAreasBasicas
 );
 
@@ -74,7 +74,7 @@ router.get('/search',
  * @desc    Obtener estadísticas de turnos por área
  * @access  Private (Admin)
  */
-router.get('/estadisticas', 
+router.get('/estadisticas',
   verifyToken,
   requireAdmin,
   areaController.getEstadisticasTurnos
@@ -109,7 +109,7 @@ router.get('/with-count',
  * @desc    Obtener área por UUID
  * @access  Private (Admin)
  */
-router.get('/:uk_area', 
+router.get('/:uk_area',
   verifyToken,
   requireAdmin,
   getAreaValidation,
@@ -133,7 +133,7 @@ router.get('/nombre/:s_nombre_area',
  * @desc    Obtener área con sus consultorios
  * @access  Private (Admin) / Public (para generar turnos)
  */
-router.get('/:uk_area/consultorios', 
+router.get('/:uk_area/consultorios',
   getAreaValidation,
   handleValidationErrors,
   areaController.getAreaWithConsultorios
@@ -144,7 +144,7 @@ router.get('/:uk_area/consultorios',
  * @desc    Actualizar área
  * @access  Private (Admin)
  */
-router.put('/:uk_area', 
+router.put('/:uk_area',
   verifyToken,
   requireAdmin,
   updateAreaValidation,
@@ -170,7 +170,7 @@ router.put('/:uk_area/soft-delete',
  * @desc    Eliminar área (hard delete)
  * @access  Private (Super Admin)
  */
-router.delete('/:uk_area', 
+router.delete('/:uk_area',
   verifyToken,
   requireSuperAdmin,
   getAreaValidation,

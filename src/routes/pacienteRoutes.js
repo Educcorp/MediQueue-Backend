@@ -4,9 +4,9 @@ const router = express.Router();
 const pacienteController = require('../controllers/pacienteController');
 const { verifyToken, optionalAuth, requireAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
-const { 
-  createPacienteValidation, 
-  updatePacienteValidation, 
+const {
+  createPacienteValidation,
+  updatePacienteValidation,
   getPacienteValidation,
   searchPacienteValidation,
   getHistorialValidation,
@@ -19,7 +19,7 @@ const {
  * @desc    Crear un nuevo paciente
  * @access  Private (Admin)
  */
-router.post('/', 
+router.post('/',
   verifyToken,
   requireAdmin,
   createPacienteValidation,
@@ -43,7 +43,7 @@ router.post('/create-or-find',
  * @desc    Login de paciente
  * @access  Public
  */
-router.post('/login', 
+router.post('/login',
   pacienteController.loginPaciente
 );
 
@@ -52,7 +52,7 @@ router.post('/login',
  * @desc    Obtener todos los pacientes activos
  * @access  Private (Admin)
  */
-router.get('/', 
+router.get('/',
   verifyToken,
   requireAdmin,
   pacienteController.getAllPacientes
@@ -74,7 +74,7 @@ router.get('/all',
  * @desc    Buscar pacientes por nombre, apellido, teléfono o email
  * @access  Private (Admin)
  */
-router.get('/search', 
+router.get('/search',
   verifyToken,
   requireAdmin,
   searchPacienteValidation,
@@ -87,7 +87,7 @@ router.get('/search',
  * @desc    Obtener información del paciente para consulta pública
  * @access  Public
  */
-router.get('/publico', 
+router.get('/publico',
   pacienteController.getPacientePublico
 );
 
@@ -96,7 +96,7 @@ router.get('/publico',
  * @desc    Obtener paciente por UUID
  * @access  Private (Admin)
  */
-router.get('/:uk_paciente', 
+router.get('/:uk_paciente',
   verifyToken,
   requireAdmin,
   getPacienteValidation,
@@ -109,7 +109,7 @@ router.get('/:uk_paciente',
  * @desc    Obtener paciente por teléfono
  * @access  Private (Admin)
  */
-router.get('/telefono/:c_telefono', 
+router.get('/telefono/:c_telefono',
   verifyToken,
   requireAdmin,
   pacienteController.getPacienteByTelefono
@@ -131,7 +131,7 @@ router.get('/email/:s_email',
  * @desc    Obtener historial de turnos del paciente
  * @access  Private (Admin)
  */
-router.get('/:uk_paciente/historial', 
+router.get('/:uk_paciente/historial',
   verifyToken,
   requireAdmin,
   getHistorialValidation,
@@ -157,7 +157,7 @@ router.get('/:uk_paciente/estadisticas',
  * @desc    Actualizar paciente
  * @access  Private (Admin)
  */
-router.put('/:uk_paciente', 
+router.put('/:uk_paciente',
   verifyToken,
   requireAdmin,
   updatePacienteValidation,
@@ -196,7 +196,7 @@ router.put('/:uk_paciente/soft-delete',
  * @desc    Eliminar paciente (hard delete)
  * @access  Private (Admin)
  */
-router.delete('/:uk_paciente', 
+router.delete('/:uk_paciente',
   verifyToken,
   requireAdmin,
   getPacienteValidation,

@@ -4,10 +4,10 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
-const { 
-  loginValidation, 
+const {
+  loginValidation,
   loginByUsuarioValidation,
-  createAdminValidation, 
+  createAdminValidation,
   updateProfileValidation,
   changePasswordValidation
 } = require('../validations/administradorValidation');
@@ -17,7 +17,7 @@ const {
  * @desc    Iniciar sesión de administrador por email
  * @access  Public
  */
-router.post('/login', 
+router.post('/login',
   loginValidation,
   handleValidationErrors,
   authController.login
@@ -28,7 +28,7 @@ router.post('/login',
  * @desc    Iniciar sesión de administrador por nombre de usuario
  * @access  Public
  */
-router.post('/login-usuario', 
+router.post('/login-usuario',
   loginByUsuarioValidation,
   handleValidationErrors,
   authController.loginByUsuario
@@ -39,7 +39,7 @@ router.post('/login-usuario',
  * @desc    Crear primer administrador (solo si no existe ninguno)
  * @access  Public
  */
-router.post('/first-admin', 
+router.post('/first-admin',
   createAdminValidation,
   handleValidationErrors,
   authController.createFirstAdmin
@@ -50,8 +50,8 @@ router.post('/first-admin',
  * @desc    Obtener perfil del usuario autenticado
  * @access  Private
  */
-router.get('/profile', 
-  verifyToken, 
+router.get('/profile',
+  verifyToken,
   authController.getProfile
 );
 
@@ -60,7 +60,7 @@ router.get('/profile',
  * @desc    Actualizar perfil del usuario autenticado
  * @access  Private
  */
-router.put('/profile', 
+router.put('/profile',
   verifyToken,
   updateProfileValidation,
   handleValidationErrors,
@@ -94,8 +94,8 @@ router.get('/estadisticas',
  * @desc    Cerrar sesión
  * @access  Private
  */
-router.post('/logout', 
-  verifyToken, 
+router.post('/logout',
+  verifyToken,
   authController.logout
 );
 
@@ -104,8 +104,8 @@ router.post('/logout',
  * @desc    Verificar token
  * @access  Private
  */
-router.get('/verify', 
-  verifyToken, 
+router.get('/verify',
+  verifyToken,
   authController.verifyToken
 );
 

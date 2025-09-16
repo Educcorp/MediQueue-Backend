@@ -4,9 +4,9 @@ const router = express.Router();
 const consultorioController = require('../controllers/consultorioController');
 const { verifyToken, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
-const { 
-  createConsultorioValidation, 
-  updateConsultorioValidation, 
+const {
+  createConsultorioValidation,
+  updateConsultorioValidation,
   getConsultorioValidation,
   getConsultoriosByAreaValidation,
   llamarSiguienteConsultorioValidation,
@@ -18,7 +18,7 @@ const {
  * @desc    Crear un nuevo consultorio
  * @access  Private (Admin)
  */
-router.post('/', 
+router.post('/',
   verifyToken,
   requireAdmin,
   createConsultorioValidation,
@@ -31,7 +31,7 @@ router.post('/',
  * @desc    Obtener todos los consultorios activos
  * @access  Private (Admin)
  */
-router.get('/', 
+router.get('/',
   verifyToken,
   requireAdmin,
   consultorioController.getAllConsultorios
@@ -53,7 +53,7 @@ router.get('/all',
  * @desc    Obtener consultorios básicos (para generar turnos)
  * @access  Public (para generar turnos)
  */
-router.get('/basicos', 
+router.get('/basicos',
   consultorioController.getConsultoriosBasicos
 );
 
@@ -62,7 +62,7 @@ router.get('/basicos',
  * @desc    Obtener consultorios disponibles (sin turnos en espera o llamando)
  * @access  Public (para generar turnos)
  */
-router.get('/disponibles', 
+router.get('/disponibles',
   consultorioController.getConsultoriosDisponibles
 );
 
@@ -82,7 +82,7 @@ router.get('/with-stats',
  * @desc    Obtener consultorio por UUID
  * @access  Private (Admin)
  */
-router.get('/:uk_consultorio', 
+router.get('/:uk_consultorio',
   verifyToken,
   requireAdmin,
   getConsultorioValidation,
@@ -95,7 +95,7 @@ router.get('/:uk_consultorio',
  * @desc    Obtener consultorios por área
  * @access  Public (para generar turnos)
  */
-router.get('/area/:uk_area', 
+router.get('/area/:uk_area',
   getConsultoriosByAreaValidation,
   handleValidationErrors,
   consultorioController.getConsultoriosByArea
@@ -106,7 +106,7 @@ router.get('/area/:uk_area',
  * @desc    Obtener consultorios básicos por área (para selects)
  * @access  Public (para generar turnos)
  */
-router.get('/area/:uk_area/basicos', 
+router.get('/area/:uk_area/basicos',
   getConsultoriosByAreaValidation,
   handleValidationErrors,
   consultorioController.getConsultoriosBasicosByArea
@@ -117,7 +117,7 @@ router.get('/area/:uk_area/basicos',
  * @desc    Obtener estadísticas de turnos del consultorio
  * @access  Private (Admin)
  */
-router.get('/:uk_consultorio/estadisticas', 
+router.get('/:uk_consultorio/estadisticas',
   verifyToken,
   requireAdmin,
   getConsultorioValidation,
@@ -169,7 +169,7 @@ router.get('/:uk_consultorio/turno-actual',
  * @desc    Llamar siguiente turno en el consultorio
  * @access  Private (Admin)
  */
-router.post('/:uk_consultorio/siguiente-turno', 
+router.post('/:uk_consultorio/siguiente-turno',
   verifyToken,
   requireAdmin,
   llamarSiguienteConsultorioValidation,
@@ -182,7 +182,7 @@ router.post('/:uk_consultorio/siguiente-turno',
  * @desc    Actualizar consultorio
  * @access  Private (Admin)
  */
-router.put('/:uk_consultorio', 
+router.put('/:uk_consultorio',
   verifyToken,
   requireAdmin,
   updateConsultorioValidation,
@@ -208,7 +208,7 @@ router.put('/:uk_consultorio/soft-delete',
  * @desc    Eliminar consultorio (hard delete)
  * @access  Private (Super Admin)
  */
-router.delete('/:uk_consultorio', 
+router.delete('/:uk_consultorio',
   verifyToken,
   requireSuperAdmin,
   getConsultorioValidation,

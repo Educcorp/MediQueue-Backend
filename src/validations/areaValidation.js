@@ -1,10 +1,10 @@
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 
 /**
  * Validaciones para crear una nueva área
  */
 const createAreaValidation = [
-  body('nombre_area')
+  body('s_nombre_area')
     .trim()
     .notEmpty()
     .withMessage('El nombre del área es requerido')
@@ -18,11 +18,11 @@ const createAreaValidation = [
  * Validaciones para actualizar un área
  */
 const updateAreaValidation = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('ID de área inválido'),
+  param('uk_area')
+    .isUUID()
+    .withMessage('UUID de área inválido'),
 
-  body('nombre_area')
+  body('s_nombre_area')
     .trim()
     .notEmpty()
     .withMessage('El nombre del área es requerido')
@@ -33,16 +33,57 @@ const updateAreaValidation = [
 ];
 
 /**
- * Validación para obtener área por ID
+ * Validación para obtener área por UUID
  */
 const getAreaValidation = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('ID de área inválido')
+  param('uk_area')
+    .isUUID()
+    .withMessage('UUID de área inválido')
+];
+
+/**
+ * Validación para búsqueda de áreas
+ */
+const searchAreaValidation = [
+  query('term')
+    .trim()
+    .notEmpty()
+    .withMessage('El término de búsqueda es requerido')
+    .isLength({ min: 2 })
+    .withMessage('El término de búsqueda debe tener al menos 2 caracteres')
+];
+
+/**
+ * Validaciones para obtener estadísticas por fecha
+ */
+const getEstadisticasPorFechaValidation = [
+  query('fecha_inicio')
+    .notEmpty()
+    .withMessage('La fecha de inicio es requerida')
+    .isDate()
+    .withMessage('La fecha de inicio debe ser válida (YYYY-MM-DD)'),
+
+  query('fecha_fin')
+    .notEmpty()
+    .withMessage('La fecha de fin es requerida')
+    .isDate()
+    .withMessage('La fecha de fin debe ser válida (YYYY-MM-DD)')
+    .custom((value, { req }) => {
+      const fechaInicio = new Date(req.query.fecha_inicio);
+      const fechaFin = new Date(value);
+
+      if (fechaFin < fechaInicio) {
+        throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio');
+      }
+
+      return true;
+    })
 ];
 
 module.exports = {
   createAreaValidation,
   updateAreaValidation,
-  getAreaValidation
+  getAreaValidation,
+  searchAreaValidation,
+  getEstadisticasPorFechaValidation
 };

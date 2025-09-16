@@ -5,7 +5,7 @@ const helpers = require('../utils/helpers');
  * Validaciones para crear un nuevo paciente
  */
 const createPacienteValidation = [
-  body('nombre')
+  body('s_nombre')
     .trim()
     .notEmpty()
     .withMessage('El nombre es requerido')
@@ -14,7 +14,7 @@ const createPacienteValidation = [
     .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
     .withMessage('El nombre solo puede contener letras y espacios'),
 
-  body('apellido')
+  body('s_apellido')
     .trim()
     .notEmpty()
     .withMessage('El apellido es requerido')
@@ -23,7 +23,7 @@ const createPacienteValidation = [
     .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
     .withMessage('El apellido solo puede contener letras y espacios'),
 
-  body('telefono')
+  body('c_telefono')
     .trim()
     .notEmpty()
     .withMessage('El teléfono es requerido')
@@ -34,7 +34,7 @@ const createPacienteValidation = [
       return true;
     }),
 
-  body('fecha_nacimiento')
+  body('d_fecha_nacimiento')
     .notEmpty()
     .withMessage('La fecha de nacimiento es requerida')
     .isDate()
@@ -43,33 +43,41 @@ const createPacienteValidation = [
       const fecha = new Date(value);
       const hoy = new Date();
       const edad = hoy.getFullYear() - fecha.getFullYear();
-      
+
       if (fecha > hoy) {
         throw new Error('La fecha de nacimiento no puede ser futura');
       }
-      
+
       if (edad > 120) {
         throw new Error('La edad no puede ser mayor a 120 años');
       }
-      
+
       return true;
     }),
 
-  body('password')
+  body('s_password')
     .optional()
     .isLength({ min: 6 })
-    .withMessage('La contraseña debe tener al menos 6 caracteres')
+    .withMessage('La contraseña debe tener al menos 6 caracteres'),
+
+  body('s_email')
+    .optional()
+    .isEmail()
+    .withMessage('El email debe tener un formato válido')
+    .normalizeEmail()
+    .isLength({ max: 100 })
+    .withMessage('El email no puede exceder 100 caracteres')
 ];
 
 /**
  * Validaciones para actualizar un paciente
  */
 const updatePacienteValidation = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('ID de paciente inválido'),
+  param('uk_paciente')
+    .isUUID()
+    .withMessage('UUID de paciente inválido'),
 
-  body('nombre')
+  body('s_nombre')
     .optional()
     .trim()
     .notEmpty()
@@ -79,7 +87,7 @@ const updatePacienteValidation = [
     .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
     .withMessage('El nombre solo puede contener letras y espacios'),
 
-  body('apellido')
+  body('s_apellido')
     .optional()
     .trim()
     .notEmpty()
@@ -89,7 +97,7 @@ const updatePacienteValidation = [
     .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
     .withMessage('El apellido solo puede contener letras y espacios'),
 
-  body('telefono')
+  body('c_telefono')
     .optional()
     .trim()
     .notEmpty()
@@ -101,7 +109,7 @@ const updatePacienteValidation = [
       return true;
     }),
 
-  body('fecha_nacimiento')
+  body('d_fecha_nacimiento')
     .optional()
     .isDate()
     .withMessage('La fecha de nacimiento debe ser una fecha válida')
@@ -109,31 +117,39 @@ const updatePacienteValidation = [
       const fecha = new Date(value);
       const hoy = new Date();
       const edad = hoy.getFullYear() - fecha.getFullYear();
-      
+
       if (fecha > hoy) {
         throw new Error('La fecha de nacimiento no puede ser futura');
       }
-      
+
       if (edad > 120) {
         throw new Error('La edad no puede ser mayor a 120 años');
       }
-      
+
       return true;
     }),
 
-  body('password')
+  body('s_password')
     .optional()
     .isLength({ min: 6 })
-    .withMessage('La contraseña debe tener al menos 6 caracteres')
+    .withMessage('La contraseña debe tener al menos 6 caracteres'),
+
+  body('s_email')
+    .optional()
+    .isEmail()
+    .withMessage('El email debe tener un formato válido')
+    .normalizeEmail()
+    .isLength({ max: 100 })
+    .withMessage('El email no puede exceder 100 caracteres')
 ];
 
 /**
- * Validación para obtener paciente por ID
+ * Validación para obtener paciente por UUID
  */
 const getPacienteValidation = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('ID de paciente inválido')
+  param('uk_paciente')
+    .isUUID()
+    .withMessage('UUID de paciente inválido')
 ];
 
 /**
@@ -152,9 +168,77 @@ const searchPacienteValidation = [
  * Validación para obtener historial de turnos
  */
 const getHistorialValidation = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('ID de paciente inválido')
+  param('uk_paciente')
+    .isUUID()
+    .withMessage('UUID de paciente inválido')
+];
+
+/**
+ * Validaciones para cambiar contraseña de paciente
+ */
+const changePasswordValidation = [
+  param('uk_paciente')
+    .isUUID()
+    .withMessage('UUID de paciente inválido'),
+
+  body('s_password_actual')
+    .notEmpty()
+    .withMessage('La contraseña actual es requerida'),
+
+  body('s_password_nuevo')
+    .isLength({ min: 6 })
+    .withMessage('La nueva contraseña debe tener al menos 6 caracteres')
+    .custom((value, { req }) => {
+      if (value === req.body.s_password_actual) {
+        throw new Error('La nueva contraseña debe ser diferente a la actual');
+      }
+      return true;
+    })
+];
+
+/**
+ * Validaciones para crear o buscar paciente (turnos públicos)
+ */
+const createOrFindPacienteValidation = [
+  body('c_telefono')
+    .trim()
+    .notEmpty()
+    .withMessage('El teléfono es requerido')
+    .custom((value) => {
+      if (!helpers.isValidPhone(value)) {
+        throw new Error('El formato del teléfono no es válido');
+      }
+      return true;
+    }),
+
+  body('s_nombre')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('El nombre debe tener entre 2 y 50 caracteres')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
+    .withMessage('El nombre solo puede contener letras y espacios'),
+
+  body('s_apellido')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('El apellido debe tener entre 2 y 50 caracteres')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
+    .withMessage('El apellido solo puede contener letras y espacios'),
+
+  body('d_fecha_nacimiento')
+    .optional()
+    .isDate()
+    .withMessage('La fecha de nacimiento debe ser una fecha válida'),
+
+  body('s_email')
+    .optional()
+    .isEmail()
+    .withMessage('El email debe tener un formato válido')
+    .normalizeEmail()
+    .isLength({ max: 100 })
+    .withMessage('El email no puede exceder 100 caracteres')
 ];
 
 module.exports = {
@@ -162,5 +246,7 @@ module.exports = {
   updatePacienteValidation,
   getPacienteValidation,
   searchPacienteValidation,
-  getHistorialValidation
+  getHistorialValidation,
+  changePasswordValidation,
+  createOrFindPacienteValidation
 };

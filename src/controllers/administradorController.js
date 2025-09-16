@@ -132,7 +132,7 @@ const updateAdmin = asyncHandler(async (req, res) => {
     // Verificar si el email ya existe (excluyendo el administrador actual)
     if (s_email && s_email !== existingAdmin.s_email) {
         const emailExists = await Administrador.getByEmail(s_email);
-        if (emailExists) {
+        if (emailExists && emailExists.uk_administrador !== uk_administrador) {
             return responses.error(res, 'El email ya está en uso por otro administrador', 409);
         }
     }
@@ -140,7 +140,7 @@ const updateAdmin = asyncHandler(async (req, res) => {
     // Verificar si el usuario ya existe (excluyendo el administrador actual)
     if (s_usuario && s_usuario !== existingAdmin.s_usuario) {
         const usuarioExists = await Administrador.getByUsuario(s_usuario);
-        if (usuarioExists) {
+        if (usuarioExists && usuarioExists.uk_administrador !== uk_administrador) {
             return responses.error(res, 'El nombre de usuario ya está en uso por otro administrador', 409);
         }
     }

@@ -1,6 +1,7 @@
 const Turno = require('../models/Turno');
 const Paciente = require('../models/Paciente');
 const Consultorio = require('../models/Consultorio');
+const Administrador = require('../models/Administrador');
 const responses = require('../utils/responses');
 const { asyncHandler } = require('../middleware/errorHandler');
 
@@ -113,7 +114,16 @@ const getTurnos = asyncHandler(async (req, res) => {
  */
 const getTurnosPublicos = asyncHandler(async (req, res) => {
     const turnos = await Turno.getTurnosPublicos();
-    responses.success(res, turnos, 'Turnos públicos obtenidos exitosamente');
+
+    // Mapear a la forma que espera el frontend
+    const mapped = (turnos || []).map(t => ({
+        id: t.i_numero_turno,
+        consultorio: t.i_numero_consultorio,
+        area: t.s_nombre_area,
+        estado: t.s_estado
+    }));
+
+    responses.success(res, mapped, 'Turnos públicos obtenidos exitosamente');
 });
 
 /**
@@ -399,7 +409,7 @@ const createTurnoPublico = asyncHandler(async (req, res) => {
     }
 
     // Obtener cualquier administrador activo para asignar el turno
-    const anyAdminId = await Consultorio.getAnyId();
+    const anyAdminId = await Administrador.getAnyId();
     if (!anyAdminId) {
         console.log('❌ No hay administradores disponibles');
         return responses.error(res, 'No hay administradores disponibles en el sistema', 400);

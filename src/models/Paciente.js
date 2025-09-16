@@ -39,7 +39,7 @@ class Paciente {
     `;
 
     const result = await executeQuery(query, [
-      s_nombre, s_apellido, c_telefono, d_fecha_nacimiento, 
+      s_nombre, s_apellido, c_telefono, d_fecha_nacimiento,
       s_password_hash, s_email, uk_usuario_creacion
     ]);
     return result.insertId;
@@ -124,7 +124,7 @@ class Paciente {
   // Actualizar paciente
   static async update(uk_paciente, pacienteData) {
     const { s_nombre, s_apellido, c_telefono, d_fecha_nacimiento, s_password, s_email, uk_usuario_modificacion } = pacienteData;
-    
+
     let query;
     let params;
 
@@ -156,7 +156,7 @@ class Paciente {
   // Cambiar contraseña
   static async changePassword(uk_paciente, newPassword, uk_usuario_modificacion) {
     const s_password_hash = await bcrypt.hash(newPassword, 10);
-    
+
     const query = `
       UPDATE Paciente 
       SET s_password_hash = ?, 
@@ -164,7 +164,7 @@ class Paciente {
           d_fecha_modificacion = NOW()
       WHERE uk_paciente = ?
     `;
-    
+
     const result = await executeQuery(query, [s_password_hash, uk_usuario_modificacion, uk_paciente]);
     return result.affectedRows > 0;
   }

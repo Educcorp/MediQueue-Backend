@@ -34,7 +34,7 @@ class Administrador {
     `;
 
     const result = await executeQuery(query, [
-      s_nombre, s_apellido, s_email, s_usuario, s_password_hash, 
+      s_nombre, s_apellido, s_email, s_usuario, s_password_hash,
       c_telefono, tipo_usuario || 1, uk_usuario_creacion
     ]);
     return result.insertId;
@@ -127,7 +127,7 @@ class Administrador {
   // Actualizar administrador
   static async update(uk_administrador, adminData) {
     const { s_nombre, s_apellido, s_email, s_usuario, s_password, c_telefono, tipo_usuario, uk_usuario_modificacion } = adminData;
-    
+
     let query;
     let params;
 
@@ -159,7 +159,7 @@ class Administrador {
   // Cambiar contraseña
   static async changePassword(uk_administrador, newPassword, uk_usuario_modificacion) {
     const s_password_hash = await bcrypt.hash(newPassword, 10);
-    
+
     const query = `
       UPDATE Administrador 
       SET s_password_hash = ?, 
@@ -167,7 +167,7 @@ class Administrador {
           d_fecha_modificacion = NOW()
       WHERE uk_administrador = ?
     `;
-    
+
     const result = await executeQuery(query, [s_password_hash, uk_usuario_modificacion, uk_administrador]);
     return result.affectedRows > 0;
   }

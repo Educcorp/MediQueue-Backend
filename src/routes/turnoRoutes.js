@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const turnoController = require('../controllers/turnoController');
-const { verifyToken, optionalAuth } = require('../middleware/auth');
+const { verifyToken, optionalAuth, requireAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
 const {
   createTurnoValidation,
@@ -11,7 +11,9 @@ const {
   updateEstadoValidation,
   llamarSiguienteValidation,
   getTurnosByPacienteValidation,
-  createTurnoWithPacienteValidation
+  createTurnoWithPacienteValidation,
+  updateObservacionesValidation,
+  getTurnosByDateRangeValidation
 } = require('../validations/turnoValidation');
 
 /**
@@ -21,6 +23,7 @@ const {
  */
 router.post('/',
   verifyToken,
+  requireAdmin,
   createTurnoValidation,
   handleValidationErrors,
   turnoController.createTurno
@@ -33,18 +36,10 @@ router.post('/',
  */
 router.post('/with-paciente',
   verifyToken,
+  requireAdmin,
   createTurnoWithPacienteValidation,
   handleValidationErrors,
   turnoController.createTurnoWithPaciente
-);
-
-/**
- * @route   POST /api/turnos/rapido
- * @desc    Generar turno rápido (para pantalla de usuario)
- * @access  Public
- */
-router.post('/rapido',
-  turnoController.generarTurnoRapido
 );
 
 /**
@@ -63,6 +58,7 @@ router.post('/publico',
  */
 router.get('/',
   verifyToken,
+  requireAdmin,
   getTurnosValidation,
   handleValidationErrors,
   turnoController.getTurnos
@@ -102,7 +98,21 @@ router.get('/ultimos',
  */
 router.get('/estadisticas',
   verifyToken,
+  requireAdmin,
   turnoController.getEstadisticasDelDia
+);
+
+/**
+ * @route   GET /api/turnos/rango-fechas
+ * @desc    Obtener turnos por rango de fechas
+ * @access  Private (Admin)
+ */
+router.get('/rango-fechas',
+  verifyToken,
+  requireAdmin,
+  getTurnosByDateRangeValidation,
+  handleValidationErrors,
+  turnoController.getTurnosByDateRange
 );
 
 /**
@@ -112,6 +122,7 @@ router.get('/estadisticas',
  */
 router.get('/fecha/:fecha',
   verifyToken,
+  requireAdmin,
   (req, res, next) => {
     req.query.fecha = req.params.fecha;
     next();
@@ -128,6 +139,7 @@ router.get('/fecha/:fecha',
  */
 router.get('/estado/:estado',
   verifyToken,
+  requireAdmin,
   (req, res, next) => {
     req.query.estado = req.params.estado;
     next();
@@ -138,96 +150,130 @@ router.get('/estado/:estado',
 );
 
 /**
- * @route   GET /api/turnos/:id
- * @desc    Obtener turno por ID
+ * @route   GET /api/turnos/:uk_turno
+ * @desc    Obtener turno por UUID
  * @access  Private (Admin)
  */
-router.get('/:id',
+router.get('/:uk_turno',
   verifyToken,
+  requireAdmin,
   getTurnoValidation,
   handleValidationErrors,
   turnoController.getTurnoById
 );
 
 /**
- * @route   GET /api/turnos/paciente/:id_paciente
+ * @route   GET /api/turnos/paciente/:uk_paciente
  * @desc    Obtener turnos por paciente
  * @access  Private (Admin)
  */
-router.get('/paciente/:id_paciente',
+router.get('/paciente/:uk_paciente',
   verifyToken,
+  requireAdmin,
   getTurnosByPacienteValidation,
   handleValidationErrors,
   turnoController.getTurnosByPaciente
 );
 
 /**
- * @route   PUT /api/turnos/:id/estado
+ * @route   PUT /api/turnos/:uk_turno/estado
  * @desc    Actualizar estado de un turno
  * @access  Private (Admin)
  */
-router.put('/:id/estado',
+router.put('/:uk_turno/estado',
   verifyToken,
+  requireAdmin,
   updateEstadoValidation,
   handleValidationErrors,
   turnoController.updateEstadoTurno
 );
 
 /**
- * @route   PATCH /api/turnos/:id/estado
+ * @route   PATCH /api/turnos/:uk_turno/estado
  * @desc    Actualizar estado de un turno (método alternativo)
  * @access  Private (Admin)
  */
-router.patch('/:id/estado',
+router.patch('/:uk_turno/estado',
   verifyToken,
+  requireAdmin,
   updateEstadoValidation,
   handleValidationErrors,
   turnoController.updateEstadoTurno
 );
 
 /**
- * @route   POST /api/turnos/consultorio/:id_consultorio/siguiente
+ * @route   PUT /api/turnos/:uk_turno/observaciones
+ * @desc    Actualizar observaciones de un turno
+ * @access  Private (Admin)
+ */
+router.put('/:uk_turno/observaciones',
+  verifyToken,
+  requireAdmin,
+  updateObservacionesValidation,
+  handleValidationErrors,
+  turnoController.updateObservaciones
+);
+
+/**
+ * @route   POST /api/turnos/consultorio/:uk_consultorio/siguiente
  * @desc    Llamar siguiente turno en un consultorio
  * @access  Private (Admin)
  */
-router.post('/consultorio/:id_consultorio/siguiente',
+router.post('/consultorio/:uk_consultorio/siguiente',
   verifyToken,
+  requireAdmin,
   llamarSiguienteValidation,
   handleValidationErrors,
   turnoController.llamarSiguienteTurno
 );
 
 /**
- * @route   PUT /api/turnos/:id/cancelar
+ * @route   PUT /api/turnos/:uk_turno/cancelar
  * @desc    Cancelar turno
  * @access  Private (Admin)
  */
-router.put('/:id/cancelar',
+router.put('/:uk_turno/cancelar',
   verifyToken,
+  requireAdmin,
   getTurnoValidation,
   handleValidationErrors,
   turnoController.cancelarTurno
 );
 
 /**
- * @route   PUT /api/turnos/:id/atender
+ * @route   PUT /api/turnos/:uk_turno/atender
  * @desc    Marcar turno como atendido
  * @access  Private (Admin)
  */
-router.put('/:id/atender',
+router.put('/:uk_turno/atender',
   verifyToken,
+  requireAdmin,
   getTurnoValidation,
   handleValidationErrors,
   turnoController.marcarAtendido
 );
 
 /**
- * @route   DELETE /api/turnos/:id
+ * @route   PUT /api/turnos/:uk_turno/no-presente
+ * @desc    Marcar turno como no presente
+ * @access  Private (Admin)
+ */
+router.put('/:uk_turno/no-presente',
+  verifyToken,
+  requireAdmin,
+  getTurnoValidation,
+  handleValidationErrors,
+  turnoController.marcarNoPresente
+);
+
+/**
+ * @route   DELETE /api/turnos/:uk_turno
  * @desc    Eliminar turno
  * @access  Private (Admin)
  */
-router.delete('/:id',
+router.delete('/:uk_turno',
   verifyToken,
+  requireAdmin,
   getTurnoValidation,
   handleValidationErrors,
   turnoController.deleteTurno

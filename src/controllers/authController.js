@@ -11,14 +11,14 @@ const login = asyncHandler(async (req, res) => {
 
   // Buscar administrador por email
   const administrador = await Administrador.getByEmail(s_email);
-  
+
   if (!administrador) {
     return responses.unauthorized(res, 'Credenciales inválidas');
   }
 
   // Verificar contraseña
   const isValidPassword = await administrador.verifyPassword(s_password);
-  
+
   if (!isValidPassword) {
     return responses.unauthorized(res, 'Credenciales inválidas');
   }
@@ -48,14 +48,14 @@ const loginByUsuario = asyncHandler(async (req, res) => {
 
   // Buscar administrador por usuario
   const administrador = await Administrador.getByUsuario(s_usuario);
-  
+
   if (!administrador) {
     return responses.unauthorized(res, 'Credenciales inválidas');
   }
 
   // Verificar contraseña
   const isValidPassword = await administrador.verifyPassword(s_password);
-  
+
   if (!isValidPassword) {
     return responses.unauthorized(res, 'Credenciales inválidas');
   }
@@ -110,23 +110,23 @@ const updateProfile = asyncHandler(async (req, res) => {
   }
 
   // Actualizar administrador
-  const updated = await Administrador.update(uk_administrador, { 
-    s_nombre, 
-    s_apellido, 
-    s_email, 
-    s_usuario, 
-    c_telefono, 
+  const updated = await Administrador.update(uk_administrador, {
+    s_nombre,
+    s_apellido,
+    s_email,
+    s_usuario,
+    c_telefono,
     s_password,
     uk_usuario_modificacion
   });
-  
+
   if (!updated) {
     return responses.error(res, 'No se pudo actualizar el perfil', 400);
   }
 
   // Obtener datos actualizados
   const updatedAdmin = await Administrador.getById(uk_administrador);
-  
+
   responses.success(res, updatedAdmin.toPublicJSON(), 'Perfil actualizado exitosamente');
 });
 
@@ -152,7 +152,7 @@ const changePassword = asyncHandler(async (req, res) => {
 
   // Cambiar contraseña
   const changed = await Administrador.changePassword(uk_administrador, s_password_nuevo, uk_usuario_modificacion);
-  
+
   if (!changed) {
     return responses.error(res, 'No se pudo cambiar la contraseña', 400);
   }
@@ -184,7 +184,7 @@ const verifyToken = asyncHandler(async (req, res) => {
 const createFirstAdmin = asyncHandler(async (req, res) => {
   // Verificar si ya existen administradores
   const existingAdmins = await Administrador.getAll();
-  
+
   if (existingAdmins.length > 0) {
     return responses.error(res, 'Ya existen administradores en el sistema', 403);
   }
@@ -192,20 +192,20 @@ const createFirstAdmin = asyncHandler(async (req, res) => {
   const { s_nombre, s_apellido, s_email, s_usuario, s_password, c_telefono } = req.body;
 
   // Crear primer administrador
-  const adminId = await Administrador.create({ 
-    s_nombre, 
-    s_apellido, 
-    s_email, 
-    s_usuario, 
-    s_password, 
+  const adminId = await Administrador.create({
+    s_nombre,
+    s_apellido,
+    s_email,
+    s_usuario,
+    s_password,
     c_telefono,
     tipo_usuario: 1, // Administrador principal
     uk_usuario_creacion: null // Primer administrador
   });
-  
+
   // Obtener datos del administrador creado
   const newAdmin = await Administrador.getById(adminId);
-  
+
   responses.created(res, newAdmin.toPublicJSON(), 'Primer administrador creado exitosamente');
 });
 
@@ -214,7 +214,7 @@ const createFirstAdmin = asyncHandler(async (req, res) => {
  */
 const getEstadisticas = asyncHandler(async (req, res) => {
   const uk_administrador = req.user.uk_administrador;
-  
+
   // Obtener administrador con estadísticas
   const administrador = await Administrador.getById(uk_administrador);
   if (!administrador) {
@@ -222,7 +222,7 @@ const getEstadisticas = asyncHandler(async (req, res) => {
   }
 
   const estadisticas = await administrador.getEstadisticas();
-  
+
   responses.success(res, {
     administrador: administrador.toPublicJSON(),
     estadisticas

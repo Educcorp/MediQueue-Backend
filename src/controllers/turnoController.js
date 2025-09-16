@@ -376,10 +376,10 @@ const createTurnoPublico = asyncHandler(async (req, res) => {
     // Si se proporciona información del paciente, crear o buscar paciente
     if (paciente && paciente.c_telefono) {
         console.log('👤 Buscando paciente existente:', paciente.c_telefono);
-        
+
         // Buscar paciente existente por teléfono
         let existingPaciente = await Paciente.getByTelefono(paciente.c_telefono);
-        
+
         if (existingPaciente) {
             console.log('✅ Paciente existente encontrado:', existingPaciente.s_nombre);
             uk_paciente = existingPaciente.uk_paciente;
@@ -495,7 +495,7 @@ module.exports = {
     deleteTurno,
     getEstadisticasDelDia,
     getTurnosByDateRange,
-    
+
     // Endpoints públicos
     createTurnoPublico,
     getTurnosPublicos,

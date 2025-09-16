@@ -10,7 +10,7 @@ class Consultorio {
     this.d_fecha_modificacion = data.d_fecha_modificacion;
     this.uk_usuario_creacion = data.uk_usuario_creacion;
     this.uk_usuario_modificacion = data.uk_usuario_modificacion;
-    
+
     // Campos adicionales para JOINs
     this.s_nombre_area = data.s_nombre_area;
   }

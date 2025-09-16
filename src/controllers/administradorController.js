@@ -38,13 +38,13 @@ const createAdmin = asyncHandler(async (req, res) => {
     }
 
     // Crear administrador
-    const uk_administrador = await Administrador.create({ 
-        s_nombre, 
-        s_apellido, 
-        s_email, 
-        s_usuario, 
-        s_password, 
-        c_telefono, 
+    const uk_administrador = await Administrador.create({
+        s_nombre,
+        s_apellido,
+        s_email,
+        s_usuario,
+        s_password,
+        c_telefono,
         tipo_usuario,
         uk_usuario_creacion
     });
@@ -146,13 +146,13 @@ const updateAdmin = asyncHandler(async (req, res) => {
     }
 
     // Actualizar administrador
-    const updated = await Administrador.update(uk_administrador, { 
-        s_nombre, 
-        s_apellido, 
-        s_email, 
-        s_usuario, 
-        c_telefono, 
-        tipo_usuario, 
+    const updated = await Administrador.update(uk_administrador, {
+        s_nombre,
+        s_apellido,
+        s_email,
+        s_usuario,
+        c_telefono,
+        tipo_usuario,
         s_password,
         uk_usuario_modificacion
     });
@@ -189,7 +189,7 @@ const changePassword = asyncHandler(async (req, res) => {
 
     // Cambiar contraseña
     const changed = await Administrador.changePassword(uk_administrador, s_password_nuevo, uk_usuario_modificacion);
-    
+
     if (!changed) {
         return responses.error(res, 'No se pudo cambiar la contraseña', 400);
     }
@@ -203,7 +203,7 @@ const changePassword = asyncHandler(async (req, res) => {
 const softDeleteAdmin = asyncHandler(async (req, res) => {
     const { uk_administrador } = req.params;
     const uk_usuario_modificacion = req.user?.uk_administrador || null;
-    
+
     // No permitir que un administrador se desactive a sí mismo
     if (uk_administrador === uk_usuario_modificacion) {
         return responses.error(res, 'No puedes desactivar tu propia cuenta', 400);
@@ -253,7 +253,7 @@ const softDeleteAdmin = asyncHandler(async (req, res) => {
 const deleteAdmin = asyncHandler(async (req, res) => {
     const { uk_administrador } = req.params;
     const currentUserId = req.user?.uk_administrador;
-    
+
     // No permitir que un administrador se elimine a sí mismo
     if (uk_administrador === currentUserId) {
         return responses.error(res, 'No puedes eliminar tu propia cuenta', 400);
@@ -293,12 +293,12 @@ const deleteAdmin = asyncHandler(async (req, res) => {
         responses.success(res, null, 'Administrador eliminado exitosamente');
     } catch (deleteError) {
         console.error('Error eliminando administrador:', deleteError);
-        
+
         // Manejo específico de error de foreign key
         if (deleteError.code === 'ER_ROW_IS_REFERENCED_2') {
             return responses.error(res, 'No se puede eliminar este administrador porque tiene turnos o datos asociados', 409);
         }
-        
+
         throw deleteError; // Re-lanzar otros errores para que los maneje el errorHandler global
     }
 });

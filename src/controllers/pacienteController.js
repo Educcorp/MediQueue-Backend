@@ -182,7 +182,7 @@ const changePassword = asyncHandler(async (req, res) => {
 
     // Cambiar contraseña
     const changed = await Paciente.changePassword(uk_paciente, s_password_nuevo, uk_usuario_modificacion);
-    
+
     if (!changed) {
         return responses.error(res, 'No se pudo cambiar la contraseña', 400);
     }

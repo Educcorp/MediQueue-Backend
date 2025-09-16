@@ -12,10 +12,10 @@ const createConsultorio = asyncHandler(async (req, res) => {
 
   try {
     // Crear consultorio
-    const uk_consultorio = await Consultorio.create({ 
-      i_numero_consultorio, 
-      uk_area, 
-      uk_usuario_creacion 
+    const uk_consultorio = await Consultorio.create({
+      i_numero_consultorio,
+      uk_area,
+      uk_usuario_creacion
     });
 
     // Obtener consultorio completo
@@ -58,7 +58,7 @@ const getConsultorioById = asyncHandler(async (req, res) => {
   const { uk_consultorio } = req.params;
 
   const consultorio = await Consultorio.getById(uk_consultorio);
-  
+
   if (!consultorio) {
     return responses.notFound(res, 'Consultorio no encontrado');
   }
@@ -111,10 +111,10 @@ const updateConsultorio = asyncHandler(async (req, res) => {
 
   try {
     // Actualizar consultorio
-    const updated = await Consultorio.update(uk_consultorio, { 
-      i_numero_consultorio, 
-      uk_area, 
-      uk_usuario_modificacion 
+    const updated = await Consultorio.update(uk_consultorio, {
+      i_numero_consultorio,
+      uk_area,
+      uk_usuario_modificacion
     });
 
     if (!updated) {
@@ -152,7 +152,7 @@ const softDeleteConsultorio = asyncHandler(async (req, res) => {
   try {
     // Marcar como inactivo
     const deleted = await Consultorio.softDelete(uk_consultorio, uk_usuario_modificacion);
-    
+
     if (!deleted) {
       return responses.error(res, 'No se pudo desactivar el consultorio', 400);
     }
@@ -182,7 +182,7 @@ const deleteConsultorio = asyncHandler(async (req, res) => {
   try {
     // Eliminar consultorio
     const deleted = await Consultorio.delete(uk_consultorio);
-    
+
     if (!deleted) {
       return responses.error(res, 'No se pudo eliminar el consultorio', 400);
     }
@@ -307,7 +307,7 @@ const llamarSiguienteTurno = asyncHandler(async (req, res) => {
 
   // Importar Turno aquí para evitar dependencias circulares
   const Turno = require('../models/Turno');
-  
+
   // Llamar siguiente turno
   const siguienteTurno = await Turno.llamarSiguienteTurno(uk_consultorio);
 

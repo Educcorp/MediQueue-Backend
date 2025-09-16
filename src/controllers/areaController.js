@@ -43,7 +43,7 @@ const getAreaById = asyncHandler(async (req, res) => {
   const { uk_area } = req.params;
 
   const area = await Area.getById(uk_area);
-  
+
   if (!area) {
     return responses.notFound(res, 'Área no encontrada');
   }
@@ -58,7 +58,7 @@ const getAreaByNombre = asyncHandler(async (req, res) => {
   const { s_nombre_area } = req.params;
 
   const area = await Area.getByNombre(s_nombre_area);
-  
+
   if (!area) {
     return responses.notFound(res, 'Área no encontrada');
   }
@@ -73,7 +73,7 @@ const getAreaWithConsultorios = asyncHandler(async (req, res) => {
   const { uk_area } = req.params;
 
   const area = await Area.getWithConsultorios(uk_area);
-  
+
   if (!area) {
     return responses.notFound(res, 'Área no encontrada');
   }
@@ -139,7 +139,7 @@ const softDeleteArea = asyncHandler(async (req, res) => {
   try {
     // Marcar como inactiva
     const deleted = await Area.softDelete(uk_area, uk_usuario_modificacion);
-    
+
     if (!deleted) {
       return responses.error(res, 'No se pudo desactivar el área', 400);
     }
@@ -169,7 +169,7 @@ const deleteArea = asyncHandler(async (req, res) => {
   try {
     // Eliminar área
     const deleted = await Area.delete(uk_area);
-    
+
     if (!deleted) {
       return responses.error(res, 'No se pudo eliminar el área', 400);
     }

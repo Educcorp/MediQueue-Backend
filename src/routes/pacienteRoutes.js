@@ -2,14 +2,16 @@ const express = require('express');
 const router = express.Router();
 
 const pacienteController = require('../controllers/pacienteController');
-const { verifyToken, optionalAuth } = require('../middleware/auth');
+const { verifyToken, optionalAuth, requireAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
 const { 
   createPacienteValidation, 
   updatePacienteValidation, 
   getPacienteValidation,
   searchPacienteValidation,
-  getHistorialValidation
+  getHistorialValidation,
+  changePasswordValidation,
+  createOrFindPacienteValidation
 } = require('../validations/pacienteValidation');
 
 /**
@@ -19,9 +21,21 @@ const {
  */
 router.post('/', 
   verifyToken,
+  requireAdmin,
   createPacienteValidation,
   handleValidationErrors,
   pacienteController.createPaciente
+);
+
+/**
+ * @route   POST /api/pacientes/create-or-find
+ * @desc    Crear o buscar paciente por teléfono (para turnos públicos)
+ * @access  Public
+ */
+router.post('/create-or-find',
+  createOrFindPacienteValidation,
+  handleValidationErrors,
+  pacienteController.createOrFindPaciente
 );
 
 /**
@@ -35,21 +49,34 @@ router.post('/login',
 
 /**
  * @route   GET /api/pacientes
- * @desc    Obtener todos los pacientes
+ * @desc    Obtener todos los pacientes activos
  * @access  Private (Admin)
  */
 router.get('/', 
   verifyToken,
+  requireAdmin,
+  pacienteController.getAllPacientes
+);
+
+/**
+ * @route   GET /api/pacientes/all
+ * @desc    Obtener todos los pacientes (incluyendo inactivos)
+ * @access  Private (Admin)
+ */
+router.get('/all',
+  verifyToken,
+  requireAdmin,
   pacienteController.getAllPacientes
 );
 
 /**
  * @route   GET /api/pacientes/search
- * @desc    Buscar pacientes por nombre, apellido o teléfono
+ * @desc    Buscar pacientes por nombre, apellido, teléfono o email
  * @access  Private (Admin)
  */
 router.get('/search', 
   verifyToken,
+  requireAdmin,
   searchPacienteValidation,
   handleValidationErrors,
   pacienteController.searchPacientes
@@ -65,58 +92,113 @@ router.get('/publico',
 );
 
 /**
- * @route   GET /api/pacientes/:id
- * @desc    Obtener paciente por ID
+ * @route   GET /api/pacientes/:uk_paciente
+ * @desc    Obtener paciente por UUID
  * @access  Private (Admin)
  */
-router.get('/:id', 
+router.get('/:uk_paciente', 
   verifyToken,
+  requireAdmin,
   getPacienteValidation,
   handleValidationErrors,
   pacienteController.getPacienteById
 );
 
 /**
- * @route   GET /api/pacientes/telefono/:telefono
+ * @route   GET /api/pacientes/telefono/:c_telefono
  * @desc    Obtener paciente por teléfono
  * @access  Private (Admin)
  */
-router.get('/telefono/:telefono', 
+router.get('/telefono/:c_telefono', 
   verifyToken,
+  requireAdmin,
   pacienteController.getPacienteByTelefono
 );
 
 /**
- * @route   GET /api/pacientes/:id/historial
+ * @route   GET /api/pacientes/email/:s_email
+ * @desc    Obtener paciente por email
+ * @access  Private (Admin)
+ */
+router.get('/email/:s_email',
+  verifyToken,
+  requireAdmin,
+  pacienteController.getPacienteByEmail
+);
+
+/**
+ * @route   GET /api/pacientes/:uk_paciente/historial
  * @desc    Obtener historial de turnos del paciente
  * @access  Private (Admin)
  */
-router.get('/:id/historial', 
+router.get('/:uk_paciente/historial', 
   verifyToken,
+  requireAdmin,
   getHistorialValidation,
   handleValidationErrors,
   pacienteController.getHistorialTurnos
 );
 
 /**
- * @route   PUT /api/pacientes/:id
+ * @route   GET /api/pacientes/:uk_paciente/estadisticas
+ * @desc    Obtener estadísticas del paciente
+ * @access  Private (Admin)
+ */
+router.get('/:uk_paciente/estadisticas',
+  verifyToken,
+  requireAdmin,
+  getPacienteValidation,
+  handleValidationErrors,
+  pacienteController.getEstadisticas
+);
+
+/**
+ * @route   PUT /api/pacientes/:uk_paciente
  * @desc    Actualizar paciente
  * @access  Private (Admin)
  */
-router.put('/:id', 
+router.put('/:uk_paciente', 
   verifyToken,
+  requireAdmin,
   updatePacienteValidation,
   handleValidationErrors,
   pacienteController.updatePaciente
 );
 
 /**
- * @route   DELETE /api/pacientes/:id
- * @desc    Eliminar paciente
+ * @route   PUT /api/pacientes/:uk_paciente/change-password
+ * @desc    Cambiar contraseña del paciente
  * @access  Private (Admin)
  */
-router.delete('/:id', 
+router.put('/:uk_paciente/change-password',
   verifyToken,
+  requireAdmin,
+  changePasswordValidation,
+  handleValidationErrors,
+  pacienteController.changePassword
+);
+
+/**
+ * @route   PUT /api/pacientes/:uk_paciente/soft-delete
+ * @desc    Desactivar paciente (soft delete)
+ * @access  Private (Admin)
+ */
+router.put('/:uk_paciente/soft-delete',
+  verifyToken,
+  requireAdmin,
+  getPacienteValidation,
+  handleValidationErrors,
+  pacienteController.softDeletePaciente
+);
+
+/**
+ * @route   DELETE /api/pacientes/:uk_paciente
+ * @desc    Eliminar paciente (hard delete)
+ * @access  Private (Admin)
+ */
+router.delete('/:uk_paciente', 
+  verifyToken,
+  requireAdmin,
   getPacienteValidation,
   handleValidationErrors,
   pacienteController.deletePaciente

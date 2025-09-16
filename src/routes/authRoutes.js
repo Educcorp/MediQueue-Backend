@@ -2,19 +2,36 @@ const express = require('express');
 const router = express.Router();
 
 const authController = require('../controllers/authController');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
-const { loginValidation, createAdminValidation, updateAdminValidation } = require('../validations/administradorValidation');
+const { 
+  loginValidation, 
+  loginByUsuarioValidation,
+  createAdminValidation, 
+  updateProfileValidation,
+  changePasswordValidation
+} = require('../validations/administradorValidation');
 
 /**
  * @route   POST /api/auth/login
- * @desc    Iniciar sesión de administrador
+ * @desc    Iniciar sesión de administrador por email
  * @access  Public
  */
 router.post('/login', 
   loginValidation,
   handleValidationErrors,
   authController.login
+);
+
+/**
+ * @route   POST /api/auth/login-usuario
+ * @desc    Iniciar sesión de administrador por nombre de usuario
+ * @access  Public
+ */
+router.post('/login-usuario', 
+  loginByUsuarioValidation,
+  handleValidationErrors,
+  authController.loginByUsuario
 );
 
 /**
@@ -45,9 +62,31 @@ router.get('/profile',
  */
 router.put('/profile', 
   verifyToken,
-  updateAdminValidation.filter(validation => validation.param !== 'id'), // Remover validación de ID
+  updateProfileValidation,
   handleValidationErrors,
   authController.updateProfile
+);
+
+/**
+ * @route   PUT /api/auth/change-password
+ * @desc    Cambiar contraseña del usuario autenticado
+ * @access  Private
+ */
+router.put('/change-password',
+  verifyToken,
+  changePasswordValidation,
+  handleValidationErrors,
+  authController.changePassword
+);
+
+/**
+ * @route   GET /api/auth/estadisticas
+ * @desc    Obtener estadísticas del administrador autenticado
+ * @access  Private
+ */
+router.get('/estadisticas',
+  verifyToken,
+  authController.getEstadisticas
 );
 
 /**

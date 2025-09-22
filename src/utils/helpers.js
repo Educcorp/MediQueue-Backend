@@ -9,10 +9,18 @@ const helpers = {
     return emailRegex.test(email);
   },
 
-  // Validar teléfono (formato argentino)
+  // Validar teléfono (formato internacional flexible similar a E.164)
   isValidPhone: (phone) => {
-    const phoneRegex = /^(\+54|54|0)?[\s-]?(\d{2,4})[\s-]?(\d{6,8})$/;
-    return phoneRegex.test(phone);
+    if (!phone) return false;
+    // Eliminar espacios, guiones y paréntesis, conservar '+' si está al inicio
+    const normalized = String(phone)
+      .trim()
+      .replace(/\s|\-|\(|\)/g, '');
+
+    // Permitir opcional '+' seguida de 8 a 15 dígitos (rangos comunes internacionales)
+    // No permitir ceros a la izquierda tras el '+' según E.164 (1-9)
+    const e164LikeRegex = /^\+?[1-9]\d{7,14}$/;
+    return e164LikeRegex.test(normalized);
   },
 
   // Formatear fecha para MySQL
@@ -53,11 +61,11 @@ const helpers = {
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDifference = today.getMonth() - birth.getMonth();
-    
+
     if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-    
+
     return age;
   },
 
@@ -97,9 +105,9 @@ const helpers = {
 
   // Verificar si un objeto está vacío
   isEmpty: (obj) => {
-    return obj === null || obj === undefined || 
-           (typeof obj === 'object' && Object.keys(obj).length === 0) ||
-           (typeof obj === 'string' && obj.trim().length === 0);
+    return obj === null || obj === undefined ||
+      (typeof obj === 'object' && Object.keys(obj).length === 0) ||
+      (typeof obj === 'string' && obj.trim().length === 0);
   }
 };
 

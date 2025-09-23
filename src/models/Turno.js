@@ -330,18 +330,14 @@ class Turno {
     return result.affectedRows > 0;
   }
 
-  // Eliminar turno (solo si no está atendido)
+  // Eliminar turno
   static async delete(uk_turno) {
-    // Verificar que el turno no esté atendido
-    const turnoQuery = 'SELECT s_estado FROM Turno WHERE uk_turno = ?';
+    // Verificar existencia del turno
+    const turnoQuery = 'SELECT uk_turno FROM Turno WHERE uk_turno = ?';
     const turno = await executeQuery(turnoQuery, [uk_turno]);
 
     if (turno.length === 0) {
       throw new Error('El turno no existe');
-    }
-
-    if (turno[0].s_estado === 'ATENDIDO') {
-      throw new Error('No se puede eliminar un turno que ya fue atendido');
     }
 
     const query = 'DELETE FROM Turno WHERE uk_turno = ?';

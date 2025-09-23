@@ -212,10 +212,7 @@ const cancelarTurno = asyncHandler(async (req, res) => {
         return responses.notFound(res, 'Turno no encontrado');
     }
 
-    // No se puede cancelar un turno ya atendido
-    if (turno.s_estado === 'ATENDIDO') {
-        return responses.error(res, 'No se puede cancelar un turno que ya fue atendido', 400);
-    }
+    // Permitir cancelación incluso si ya fue atendido (solicitud del cliente)
 
     // Cancelar turno
     const cancelled = await Turno.cancelar(uk_turno, uk_usuario_modificacion);

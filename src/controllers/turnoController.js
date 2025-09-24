@@ -486,6 +486,124 @@ const getUltimosTurnosPublicos = asyncHandler(async (req, res) => {
     responses.success(res, mapped, 'Últimos turnos obtenidos exitosamente');
 });
 
+/**
+ * Crear turno público con asignación automática de consultorio
+ */
+const createTurnoPublicoAuto = asyncHandler(async (req, res) => {
+    const { uk_area, paciente } = req.body;
+
+    console.log('🎫 Creando turno público con asignación automática:', { uk_area, paciente });
+
+    let consultorioAsignado = null;
+
+    if (uk_area) {
+        // Si se especifica un área, buscar el consultorio más disponible de esa área
+        const query = `
+            SELECT c.*, a.s_nombre_area,
+                COALESCE(turno_count.total_turnos, 0) as total_turnos_en_espera
+            FROM Consultorio c
+            JOIN Area a ON c.uk_area = a.uk_area
+            LEFT JOIN (
+                SELECT uk_consultorio, COUNT(*) as total_turnos
+                FROM Turno 
+                WHERE s_estado IN ('EN_ESPERA', 'LLAMANDO') 
+                AND ck_estado = 'ACTIVO'
+                AND d_fecha = CURDATE()
+                GROUP BY uk_consultorio
+            ) turno_count ON c.uk_consultorio = turno_count.uk_consultorio
+            WHERE c.ck_estado = 'ACTIVO' AND a.ck_estado = 'ACTIVO' AND c.uk_area = ?
+            ORDER BY total_turnos_en_espera ASC, c.i_numero_consultorio ASC
+            LIMIT 1
+        `;
+        const { executeQuery } = require('../config/database');
+        const results = await executeQuery(query, [uk_area]);
+        consultorioAsignado = results.length > 0 ? results[0] : null;
+    } else {
+        // Si no se especifica área, buscar el consultorio más disponible de todo el sistema
+        consultorioAsignado = await Consultorio.getMostAvailable();
+    }
+
+    if (!consultorioAsignado) {
+        console.log('❌ No hay consultorios disponibles');
+        return responses.error(res, 'No hay consultorios disponibles en este momento', 400);
+    }
+
+    console.log('✅ Consultorio asignado automáticamente:', {
+        consultorio: consultorioAsignado.i_numero_consultorio,
+        area: consultorioAsignado.s_nombre_area,
+        turnos_en_espera: consultorioAsignado.total_turnos_en_espera || 0
+    });
+
+    let uk_paciente = null;
+
+    // Si se proporciona información del paciente, crear o buscar paciente
+    if (paciente && paciente.c_telefono) {
+        console.log('👤 Buscando paciente existente:', paciente.c_telefono);
+
+        // Buscar paciente existente por teléfono
+        let existingPaciente = await Paciente.getByTelefono(paciente.c_telefono);
+
+        if (existingPaciente) {
+            console.log('✅ Paciente existente encontrado:', existingPaciente.s_nombre);
+            uk_paciente = existingPaciente.uk_paciente;
+        } else {
+            console.log('👤 Creando nuevo paciente...');
+            // Crear paciente temporal (sin contraseña)
+            uk_paciente = await Paciente.create({
+                s_nombre: paciente.s_nombre || 'Paciente',
+                s_apellido: paciente.s_apellido || 'Invitado',
+                c_telefono: paciente.c_telefono,
+                d_fecha_nacimiento: paciente.d_fecha_nacimiento || '1990-01-01',
+                s_email: paciente.s_email || null,
+                uk_usuario_creacion: null // Usuario público
+            });
+            console.log('✅ Paciente creado con UUID:', uk_paciente);
+        }
+    }
+
+    // Obtener cualquier administrador activo para asignar el turno
+    const anyAdminId = await Administrador.getAnyId();
+    if (!anyAdminId) {
+        console.log('❌ No hay administradores disponibles');
+        return responses.error(res, 'No hay administradores disponibles en el sistema', 400);
+    }
+    console.log('👨‍💼 Administrador asignado:', anyAdminId);
+
+    // Crear turno
+    const turnoData = {
+        uk_consultorio: consultorioAsignado.uk_consultorio,
+        uk_paciente: uk_paciente,
+        uk_administrador: anyAdminId,
+        uk_usuario_creacion: null // Usuario público
+    };
+    console.log('🎫 Creando turno:', turnoData);
+
+    const turnoResult = await Turno.create(turnoData);
+    console.log('✅ Turno creado con UUID:', turnoResult.uk_turno);
+
+    // Obtener turno completo con información detallada
+    const turnoCompleto = await Turno.getById(turnoResult.uk_turno);
+
+    if (!turnoCompleto) {
+        return responses.error(res, 'Error obteniendo información del turno creado', 500);
+    }
+    console.log('✅ Turno completo obtenido:', turnoCompleto);
+
+    // Agregar información adicional sobre la asignación automática
+    const responseData = {
+        ...turnoCompleto,
+        asignacion_automatica: {
+            consultorio_asignado: {
+                numero: consultorioAsignado.i_numero_consultorio,
+                area: consultorioAsignado.s_nombre_area,
+                turnos_en_espera: consultorioAsignado.total_turnos_en_espera || 0
+            }
+        }
+    };
+
+    responses.created(res, responseData, 'Turno creado exitosamente con asignación automática de consultorio');
+});
+
 module.exports = {
     // Endpoints autenticados
     createTurno,
@@ -505,6 +623,7 @@ module.exports = {
 
     // Endpoints públicos
     createTurnoPublico,
+    createTurnoPublicoAuto,
     getTurnosPublicos,
     getProximoTurnoPublico,
     getUltimosTurnosPublicos

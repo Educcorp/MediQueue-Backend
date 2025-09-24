@@ -52,6 +52,15 @@ router.post('/publico',
 );
 
 /**
+ * @route   POST /api/turnos/publico/auto
+ * @desc    Crear turno con asignación automática de consultorio (para usuarios públicos)
+ * @access  Public
+ */
+router.post('/publico/auto',
+  turnoController.createTurnoPublicoAuto
+);
+
+/**
  * @route   GET /api/turnos
  * @desc    Obtener todos los turnos con filtros
  * @access  Private (Admin)

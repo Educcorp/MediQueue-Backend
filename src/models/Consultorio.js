@@ -118,6 +118,29 @@ class Consultorio {
     return results.map(consultorio => new Consultorio(consultorio));
   }
 
+  // Obtener el consultorio más disponible (con menos turnos en espera)
+  static async getMostAvailable() {
+    const query = `
+      SELECT c.*, a.s_nombre_area,
+        COALESCE(turno_count.total_turnos, 0) as total_turnos_en_espera
+      FROM Consultorio c
+      JOIN Area a ON c.uk_area = a.uk_area
+      LEFT JOIN (
+        SELECT uk_consultorio, COUNT(*) as total_turnos
+        FROM Turno 
+        WHERE s_estado IN ('EN_ESPERA', 'LLAMANDO') 
+        AND ck_estado = 'ACTIVO'
+        AND d_fecha = CURDATE()
+        GROUP BY uk_consultorio
+      ) turno_count ON c.uk_consultorio = turno_count.uk_consultorio
+      WHERE c.ck_estado = 'ACTIVO' AND a.ck_estado = 'ACTIVO'
+      ORDER BY total_turnos_en_espera ASC, a.s_nombre_area ASC, c.i_numero_consultorio ASC
+      LIMIT 1
+    `;
+    const results = await executeQuery(query);
+    return results.length > 0 ? new Consultorio(results[0]) : null;
+  }
+
   // Obtener consultorios básicos (solo para mostrar en formularios)
   static async getBasicos() {
     const query = `

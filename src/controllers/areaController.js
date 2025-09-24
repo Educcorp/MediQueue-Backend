@@ -167,19 +167,15 @@ const deleteArea = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Eliminar área
+    // Eliminar área (incluye consultorios y turnos asociados automáticamente)
     const deleted = await Area.delete(uk_area);
 
     if (!deleted) {
       return responses.error(res, 'No se pudo eliminar el área', 400);
     }
 
-    responses.success(res, null, 'Área eliminada exitosamente');
+    responses.success(res, null, 'Área, consultorios y turnos asociados eliminados exitosamente');
   } catch (error) {
-    // Si hay consultorios asociados
-    if (error.message.includes('consultorios asociados')) {
-      return responses.error(res, error.message, 409);
-    }
     throw error;
   }
 });

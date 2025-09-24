@@ -185,14 +185,11 @@ class Consultorio {
 
   // Eliminar consultorio (hard delete)
   static async delete(uk_consultorio) {
-    // Verificar si hay turnos asociados
-    const turnosQuery = 'SELECT COUNT(*) as count FROM Turno WHERE uk_consultorio = ? AND ck_estado = "ACTIVO"';
-    const turnosCount = await executeQuery(turnosQuery, [uk_consultorio]);
+    // Primero eliminar todos los turnos asociados al consultorio
+    const deleteTurnosQuery = 'DELETE FROM Turno WHERE uk_consultorio = ?';
+    await executeQuery(deleteTurnosQuery, [uk_consultorio]);
 
-    if (turnosCount[0].count > 0) {
-      throw new Error('No se puede eliminar el consultorio porque tiene turnos asociados');
-    }
-
+    // Luego eliminar el consultorio
     const query = 'DELETE FROM Consultorio WHERE uk_consultorio = ?';
     const result = await executeQuery(query, [uk_consultorio]);
     return result.affectedRows > 0;

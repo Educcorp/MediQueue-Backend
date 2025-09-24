@@ -115,16 +115,25 @@ class Area {
     return result.affectedRows > 0;
   }
 
-  // Eliminar área (hard delete - solo si no tiene consultorios)
+  // Eliminar área (hard delete - elimina consultorios y turnos en cascada)
   static async delete(uk_area) {
-    // Verificar si hay consultorios asociados
-    const consultoriosQuery = 'SELECT COUNT(*) as count FROM Consultorio WHERE uk_area = ? AND ck_estado = "ACTIVO"';
-    const consultoriosCount = await executeQuery(consultoriosQuery, [uk_area]);
+    // Obtener todos los consultorios del área
+    const consultoriosQuery = 'SELECT uk_consultorio FROM Consultorio WHERE uk_area = ?';
+    const consultorios = await executeQuery(consultoriosQuery, [uk_area]);
 
-    if (consultoriosCount[0].count > 0) {
-      throw new Error('No se puede eliminar el área porque tiene consultorios asociados');
+    // Eliminar turnos de todos los consultorios del área
+    if (consultorios.length > 0) {
+      const consultorioIds = consultorios.map(c => c.uk_consultorio);
+      const placeholders = consultorioIds.map(() => '?').join(',');
+      const deleteTurnosQuery = `DELETE FROM Turno WHERE uk_consultorio IN (${placeholders})`;
+      await executeQuery(deleteTurnosQuery, consultorioIds);
     }
 
+    // Eliminar todos los consultorios del área
+    const deleteConsultoriosQuery = 'DELETE FROM Consultorio WHERE uk_area = ?';
+    await executeQuery(deleteConsultoriosQuery, [uk_area]);
+
+    // Finalmente eliminar el área
     const query = 'DELETE FROM Area WHERE uk_area = ?';
     const result = await executeQuery(query, [uk_area]);
     return result.affectedRows > 0;

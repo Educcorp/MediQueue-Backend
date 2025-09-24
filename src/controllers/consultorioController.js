@@ -180,19 +180,15 @@ const deleteConsultorio = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Eliminar consultorio
+    // Eliminar consultorio (incluye turnos asociados automáticamente)
     const deleted = await Consultorio.delete(uk_consultorio);
 
     if (!deleted) {
       return responses.error(res, 'No se pudo eliminar el consultorio', 400);
     }
 
-    responses.success(res, null, 'Consultorio eliminado exitosamente');
+    responses.success(res, null, 'Consultorio y sus turnos asociados eliminados exitosamente');
   } catch (error) {
-    // Si hay turnos asociados
-    if (error.message.includes('turnos asociados')) {
-      return responses.error(res, error.message, 409);
-    }
     throw error;
   }
 });

@@ -79,7 +79,10 @@ const helpers = {
 
   // Validar que un estado de turno sea válido
   isValidTurnoEstado: (estado) => {
-    const estadosValidos = ['En espera', 'Llamando', 'Atendido', 'Cancelado'];
+    const estadosValidos = [
+      'En espera', 'Llamando', 'Atendido', 'Cancelado', // Formato español (legacy)
+      'EN_ESPERA', 'LLAMANDO', 'ATENDIDO', 'CANCELADO', 'NO_PRESENTE' // Formato nuevo
+    ];
     return estadosValidos.includes(estado);
   },
 

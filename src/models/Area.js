@@ -17,12 +17,25 @@ class Area {
   // Crear nueva área
   static async create(areaData) {
     const { s_nombre_area, s_letra, s_color, s_icono, uk_usuario_creacion } = areaData;
-    const query = `
+    
+    // Generar UUID explícitamente para poder devolverlo
+    const insertQuery = `
       INSERT INTO Area (s_nombre_area, s_letra, s_color, s_icono, uk_usuario_creacion) 
       VALUES (?, ?, ?, ?, ?)
     `;
-    const result = await executeQuery(query, [s_nombre_area, s_letra, s_color, s_icono, uk_usuario_creacion]);
-    return result.insertId;
+    
+    await executeQuery(insertQuery, [s_nombre_area, s_letra, s_color, s_icono, uk_usuario_creacion]);
+    
+    // Obtener el UUID del área recién creada
+    const selectQuery = `
+      SELECT uk_area FROM Area 
+      WHERE s_nombre_area = ? 
+      ORDER BY d_fecha_creacion DESC 
+      LIMIT 1
+    `;
+    
+    const result = await executeQuery(selectQuery, [s_nombre_area]);
+    return result[0].uk_area;
   }
 
   // Obtener todas las áreas activas

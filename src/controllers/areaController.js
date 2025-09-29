@@ -230,7 +230,10 @@ const getAreasBasicas = asyncHandler(async (req, res) => {
 
   const areasBasicas = areas.map(area => ({
     uk_area: area.uk_area,
-    s_nombre_area: area.s_nombre_area
+    s_nombre_area: area.s_nombre_area,
+    s_letra: area.s_letra,
+    s_color: area.s_color,
+    s_icono: area.s_icono
   }));
 
   responses.success(res, areasBasicas, 'Áreas básicas obtenidas exitosamente');

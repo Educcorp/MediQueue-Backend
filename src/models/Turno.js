@@ -204,7 +204,10 @@ class Turno {
         COALESCE(p.s_nombre, 'Paciente') as s_nombre_paciente,
         COALESCE(p.s_apellido, 'Invitado') as s_apellido_paciente,
         c.i_numero_consultorio,
-        a.s_nombre_area
+        a.s_nombre_area,
+        a.s_letra,
+        a.s_color,
+        a.s_icono
       FROM Turno t
       LEFT JOIN Paciente p ON t.uk_paciente = p.uk_paciente
       JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio

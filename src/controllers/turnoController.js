@@ -115,12 +115,19 @@ const getTurnos = asyncHandler(async (req, res) => {
 const getTurnosPublicos = asyncHandler(async (req, res) => {
     const turnos = await Turno.getTurnosPublicos();
 
-    // Mapear a la forma que espera el frontend
+    // Mapear a la forma que espera el frontend con datos del área
     const mapped = (turnos || []).map(t => ({
         id: t.i_numero_turno,
+        i_numero_turno: t.i_numero_turno,
         consultorio: t.i_numero_consultorio,
+        i_numero_consultorio: t.i_numero_consultorio,
         area: t.s_nombre_area,
-        estado: t.s_estado
+        s_nombre_area: t.s_nombre_area,
+        estado: t.s_estado,
+        s_estado: t.s_estado,
+        s_letra: t.s_letra,
+        s_color: t.s_color,
+        s_icono: t.s_icono
     }));
 
     responses.success(res, mapped, 'Turnos públicos obtenidos exitosamente');

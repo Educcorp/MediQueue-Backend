@@ -301,7 +301,8 @@ module.exports = {
   deleteArea,
   getEstadisticasTurnos,
   getEstadisticasTurnosPorFecha,
-  getAreasWithConsultoriosCount,
+  getAreasBasicas,
+  getAreasWithCount,
   getPersonalizationConfig,
   checkLetraDisponibilidad
 };

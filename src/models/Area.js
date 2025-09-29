@@ -35,6 +35,11 @@ class Area {
     `;
     
     const result = await executeQuery(selectQuery, [s_nombre_area]);
+    
+    if (result.length === 0) {
+      throw new Error('Error al obtener el área creada');
+    }
+    
     return result[0].uk_area;
   }
 

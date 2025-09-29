@@ -35,12 +35,28 @@ class Consultorio {
       throw new Error('Ya existe un consultorio con este número en la misma área');
     }
 
-    const query = `
+    const insertQuery = `
       INSERT INTO Consultorio (i_numero_consultorio, uk_area, uk_usuario_creacion) 
       VALUES (?, ?, ?)
     `;
-    const result = await executeQuery(query, [i_numero_consultorio, uk_area, uk_usuario_creacion]);
-    return result.insertId;
+    
+    await executeQuery(insertQuery, [i_numero_consultorio, uk_area, uk_usuario_creacion]);
+    
+    // Obtener el UUID del consultorio recién creado
+    const selectQuery = `
+      SELECT uk_consultorio FROM Consultorio 
+      WHERE i_numero_consultorio = ? AND uk_area = ? 
+      ORDER BY d_fecha_creacion DESC 
+      LIMIT 1
+    `;
+    
+    const result = await executeQuery(selectQuery, [i_numero_consultorio, uk_area]);
+    
+    if (result.length === 0) {
+      throw new Error('Error al obtener el consultorio creado');
+    }
+    
+    return result[0].uk_consultorio;
   }
 
   // Obtener todos los consultorios activos

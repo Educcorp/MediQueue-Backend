@@ -26,16 +26,14 @@ const updateConsultorioValidation = [
     .withMessage('UUID de consultorio inválido'),
 
   body('i_numero_consultorio')
-    .optional()
     .notEmpty()
-    .withMessage('El número del consultorio no puede estar vacío')
+    .withMessage('El número del consultorio es requerido')
     .isInt({ min: 1, max: 999 })
     .withMessage('El número del consultorio debe ser un entero entre 1 y 999'),
 
   body('uk_area')
-    .optional()
     .notEmpty()
-    .withMessage('El UUID del área no puede estar vacío')
+    .withMessage('El UUID del área es requerido')
     .isUUID()
     .withMessage('UUID de área inválido')
 ];

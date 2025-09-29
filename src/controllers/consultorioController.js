@@ -103,6 +103,8 @@ const updateConsultorio = asyncHandler(async (req, res) => {
   const { i_numero_consultorio, uk_area } = req.body;
   const uk_usuario_modificacion = req.user?.uk_administrador || null;
 
+  console.log('Updating consultorio:', { uk_consultorio, i_numero_consultorio, uk_area, uk_usuario_modificacion });
+
   // Verificar que el consultorio existe
   const consultorio = await Consultorio.getById(uk_consultorio);
   if (!consultorio) {
@@ -126,6 +128,7 @@ const updateConsultorio = asyncHandler(async (req, res) => {
 
     responses.success(res, consultorioActualizado.toJSON(), 'Consultorio actualizado exitosamente');
   } catch (error) {
+    console.error('Error updating consultorio:', error);
     if (error.message.includes('área especificada no existe')) {
       return responses.notFound(res, error.message);
     }

@@ -178,4 +178,26 @@ router.delete('/:uk_area',
   areaController.deleteArea
 );
 
+/**
+ * @route   GET /api/areas/personalization/config
+ * @desc    Obtener configuración de personalización (letras en uso, colores e iconos)
+ * @access  Private (Admin)
+ */
+router.get('/personalization/config',
+  verifyToken,
+  requireAdmin,
+  areaController.getPersonalizationConfig
+);
+
+/**
+ * @route   GET /api/areas/personalization/check-letra
+ * @desc    Verificar disponibilidad de letra
+ * @access  Private (Admin)
+ */
+router.get('/personalization/check-letra',
+  verifyToken,
+  requireAdmin,
+  areaController.checkLetraDisponibilidad
+);
+
 module.exports = router;

@@ -6,11 +6,20 @@ const { asyncHandler } = require('../middleware/errorHandler');
  * Crear una nueva área
  */
 const createArea = asyncHandler(async (req, res) => {
-  const { s_nombre_area } = req.body;
+  const { s_nombre_area, s_letra, s_color, s_icono } = req.body;
   const uk_usuario_creacion = req.user?.uk_administrador || null;
 
+  // Normalizar la letra a mayúsculas si se proporciona
+  const letraNormalizada = s_letra ? s_letra.toUpperCase() : null;
+
   // Crear área
-  const uk_area = await Area.create({ s_nombre_area, uk_usuario_creacion });
+  const uk_area = await Area.create({ 
+    s_nombre_area, 
+    s_letra: letraNormalizada, 
+    s_color, 
+    s_icono, 
+    uk_usuario_creacion 
+  });
 
   // Obtener área completa
   const nuevaArea = await Area.getById(uk_area);
@@ -101,7 +110,7 @@ const searchAreas = asyncHandler(async (req, res) => {
  */
 const updateArea = asyncHandler(async (req, res) => {
   const { uk_area } = req.params;
-  const { s_nombre_area } = req.body;
+  const { s_nombre_area, s_letra, s_color, s_icono } = req.body;
   const uk_usuario_modificacion = req.user?.uk_administrador || null;
 
   // Verificar que el área existe
@@ -110,8 +119,17 @@ const updateArea = asyncHandler(async (req, res) => {
     return responses.notFound(res, 'Área no encontrada');
   }
 
+  // Normalizar la letra a mayúsculas si se proporciona
+  const letraNormalizada = s_letra ? s_letra.toUpperCase() : null;
+
   // Actualizar área
-  const updated = await Area.update(uk_area, { s_nombre_area, uk_usuario_modificacion });
+  const updated = await Area.update(uk_area, { 
+    s_nombre_area, 
+    s_letra: letraNormalizada, 
+    s_color, 
+    s_icono, 
+    uk_usuario_modificacion 
+  });
 
   if (!updated) {
     return responses.error(res, 'No se pudo actualizar el área', 400);
@@ -241,6 +259,35 @@ const getAreasWithCount = asyncHandler(async (req, res) => {
   responses.success(res, results, 'Áreas con conteo de consultorios obtenidas exitosamente');
 });
 
+/**
+ * Obtener configuración de personalización
+ */
+const getPersonalizationConfig = asyncHandler(async (req, res) => {
+  const config = await Area.getPersonalizationConfig();
+  
+  responses.success(res, config, 'Configuración de personalización obtenida exitosamente');
+});
+
+/**
+ * Verificar disponibilidad de letra
+ */
+const checkLetraDisponibilidad = asyncHandler(async (req, res) => {
+  const { letra } = req.query;
+  const { uk_area } = req.query;
+
+  if (!letra) {
+    return responses.error(res, 'La letra es requerida', 400);
+  }
+
+  const letraNormalizada = letra.toUpperCase();
+  const disponible = await Area.isLetraAvailable(letraNormalizada, uk_area);
+
+  responses.success(res, { 
+    letra: letraNormalizada, 
+    disponible 
+  }, `Letra ${disponible ? 'disponible' : 'no disponible'}`);
+});
+
 module.exports = {
   createArea,
   getAllAreas,
@@ -254,6 +301,7 @@ module.exports = {
   deleteArea,
   getEstadisticasTurnos,
   getEstadisticasTurnosPorFecha,
-  getAreasBasicas,
-  getAreasWithCount
+  getAreasWithConsultoriosCount,
+  getPersonalizationConfig,
+  checkLetraDisponibilidad
 };

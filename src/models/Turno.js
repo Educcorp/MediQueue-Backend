@@ -29,14 +29,31 @@ class Turno {
     this.s_apellido_administrador = data.s_apellido_administrador;
   }
 
-  // Generar siguiente número de turno para el día
-  static async getNextNumeroTurno() {
-    const query = `
-      SELECT COALESCE(MAX(i_numero_turno), 0) + 1 as next_numero 
-      FROM Turno 
-      WHERE d_fecha = CURDATE() AND ck_estado = 'ACTIVO'
-    `;
-    const result = await executeQuery(query);
+  // Generar siguiente número de turno para el día por área
+  static async getNextNumeroTurno(uk_area = null) {
+    let query;
+    let params;
+    
+    if (uk_area) {
+      // Generar número de turno específico para el área
+      query = `
+        SELECT COALESCE(MAX(t.i_numero_turno), 0) + 1 as next_numero 
+        FROM Turno t
+        JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
+        WHERE c.uk_area = ? AND t.d_fecha = CURDATE() AND t.ck_estado = 'ACTIVO'
+      `;
+      params = [uk_area];
+    } else {
+      // Fallback: generar número global si no se especifica área
+      query = `
+        SELECT COALESCE(MAX(i_numero_turno), 0) + 1 as next_numero 
+        FROM Turno 
+        WHERE d_fecha = CURDATE() AND ck_estado = 'ACTIVO'
+      `;
+      params = [];
+    }
+    
+    const result = await executeQuery(query, params);
     return result[0].next_numero;
   }
 
@@ -44,13 +61,16 @@ class Turno {
   static async create(turnoData) {
     const { uk_consultorio, uk_administrador, uk_paciente = null, uk_usuario_creacion } = turnoData;
 
-    // Verificar que el consultorio existe
-    const consultorioQuery = 'SELECT uk_consultorio FROM Consultorio WHERE uk_consultorio = ? AND ck_estado = "ACTIVO"';
-    const consultorioExists = await executeQuery(consultorioQuery, [uk_consultorio]);
+    // Verificar que el consultorio existe y obtener su área
+    const consultorioQuery = 'SELECT uk_consultorio, uk_area FROM Consultorio WHERE uk_consultorio = ? AND ck_estado = "ACTIVO"';
+    const consultorioResult = await executeQuery(consultorioQuery, [uk_consultorio]);
 
-    if (consultorioExists.length === 0) {
+    if (consultorioResult.length === 0) {
       throw new Error('El consultorio especificado no existe o está inactivo');
     }
+
+    const consultorio = consultorioResult[0];
+    const uk_area = consultorio.uk_area;
 
     // Verificar que el administrador existe
     const adminQuery = 'SELECT uk_administrador FROM Administrador WHERE uk_administrador = ? AND ck_estado = "ACTIVO"';
@@ -70,8 +90,8 @@ class Turno {
       }
     }
 
-    // Generar número de turno
-    const numeroTurno = await this.getNextNumeroTurno();
+    // Generar número de turno específico para el área
+    const numeroTurno = await this.getNextNumeroTurno(uk_area);
 
     // Crear turno
     const query = `
@@ -83,9 +103,25 @@ class Turno {
     `;
 
     const result = await executeQuery(query, [numeroTurno, uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion]);
+    
+    // Obtener el UUID del turno creado consultando por el número de turno y fecha
+    const createdTurnQuery = `
+      SELECT uk_turno 
+      FROM Turno 
+      WHERE i_numero_turno = ? AND d_fecha = CURDATE() AND uk_consultorio = ?
+      ORDER BY d_fecha_creacion DESC 
+      LIMIT 1
+    `;
+    
+    const createdTurnResult = await executeQuery(createdTurnQuery, [numeroTurno, uk_consultorio]);
+    
+    if (createdTurnResult.length === 0) {
+      throw new Error('Error obteniendo el turno creado');
+    }
+
     return {
       id: result.insertId,
-      uk_turno: result.insertId, // En MySQL, insertId es el ID generado
+      uk_turno: createdTurnResult[0].uk_turno,
       i_numero_turno: numeroTurno
     };
   }

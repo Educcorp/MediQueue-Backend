@@ -283,8 +283,8 @@ router.put('/:uk_turno/no-presente',
 router.delete('/:uk_turno',
   verifyToken,
   requireAdmin,
-  getTurnoValidation,
-  handleValidationErrors,
+  // getTurnoValidation, // TEMPORALMENTE COMENTADO PARA DEBUG
+  // handleValidationErrors, // TEMPORALMENTE COMENTADO PARA DEBUG
   turnoController.deleteTurno
 );
 

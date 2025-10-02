@@ -319,22 +319,37 @@ const updateObservaciones = asyncHandler(async (req, res) => {
 const deleteTurno = asyncHandler(async (req, res) => {
     const { uk_turno } = req.params;
 
+    console.log('🗑️ [DELETE] Parámetro recibido:', uk_turno);
+    console.log('🗑️ [DELETE] Tipo:', typeof uk_turno);
+    console.log('🗑️ [DELETE] Longitud:', uk_turno?.length);
+
     // Verificar que el turno existe
+    console.log('🔍 [DELETE] Buscando turno en BD...');
     const turno = await Turno.getById(uk_turno);
     if (!turno) {
+        console.log('❌ [DELETE] Turno no encontrado en BD');
         return responses.notFound(res, 'Turno no encontrado');
     }
 
+    console.log('✅ [DELETE] Turno encontrado:', turno.uk_turno);
+
     // Eliminar turno
     try {
+        console.log('🔄 [DELETE] Ejecutando eliminación lógica...');
         const deleted = await Turno.delete(uk_turno);
+        console.log('🔄 [DELETE] Resultado de eliminación:', deleted);
+        
         if (!deleted) {
+            console.log('❌ [DELETE] La eliminación retornó false');
             return responses.error(res, 'No se pudo eliminar el turno', 400);
         }
     } catch (error) {
+        console.error('❌ [DELETE] Error eliminando:', error.message);
+        console.error('❌ [DELETE] Stack completo:', error.stack);
         return responses.error(res, error.message, 400);
     }
 
+    console.log('✅ [DELETE] Turno eliminado exitosamente');
     responses.success(res, null, 'Turno eliminado exitosamente');
 });
 

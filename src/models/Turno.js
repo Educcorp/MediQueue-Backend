@@ -34,30 +34,23 @@ class Turno {
     let query;
     let params;
     
-    // Obtener fecha local actual (misma lógica que en create)
-    const now = new Date();
-    const today = now.getFullYear() + '-' + 
-                  String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                  String(now.getDate()).padStart(2, '0');
-    console.log('📅 [NUMERO] Calculando para fecha (local):', today);
-    
     if (uk_area) {
-      // Generar número específico por área y día
+      // Generar número de turno específico para el área
       query = `
         SELECT COALESCE(MAX(t.i_numero_turno), 0) + 1 as next_numero 
         FROM Turno t
         JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
-        WHERE c.uk_area = ? AND t.d_fecha = ? AND t.ck_estado = 'ACTIVO'
+        WHERE c.uk_area = ? AND t.d_fecha = CURDATE() AND t.ck_estado = 'ACTIVO'
       `;
-      params = [uk_area, today];
+      params = [uk_area];
     } else {
-      // Fallback: número global por día
+      // Fallback: generar número global si no se especifica área
       query = `
         SELECT COALESCE(MAX(i_numero_turno), 0) + 1 as next_numero 
         FROM Turno 
-        WHERE d_fecha = ? AND ck_estado = 'ACTIVO'
+        WHERE d_fecha = CURDATE() AND ck_estado = 'ACTIVO'
       `;
-      params = [today];
+      params = [];
     }
     
     const result = await executeQuery(query, params);
@@ -70,13 +63,14 @@ class Turno {
 
     // Verificar que el consultorio existe y obtener su área
     const consultorioQuery = 'SELECT uk_consultorio, uk_area FROM Consultorio WHERE uk_consultorio = ? AND ck_estado = "ACTIVO"';
-    const consultorioExists = await executeQuery(consultorioQuery, [uk_consultorio]);
+    const consultorioResult = await executeQuery(consultorioQuery, [uk_consultorio]);
 
-    if (consultorioExists.length === 0) {
+    if (consultorioResult.length === 0) {
       throw new Error('El consultorio especificado no existe o está inactivo');
     }
-    
-    const uk_area = consultorioExists[0].uk_area;
+
+    const consultorio = consultorioResult[0];
+    const uk_area = consultorio.uk_area;
 
     // Verificar que el administrador existe
     const adminQuery = 'SELECT uk_administrador FROM Administrador WHERE uk_administrador = ? AND ck_estado = "ACTIVO"';
@@ -96,20 +90,8 @@ class Turno {
       }
     }
 
-    // Generar número de turno por área
+    // Generar número de turno específico para el área
     const numeroTurno = await this.getNextNumeroTurno(uk_area);
-
-    // Obtener fecha y hora actual en formato local (zona horaria local)
-    const now = new Date();
-    const fechaHoy = now.getFullYear() + '-' + 
-                    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                    String(now.getDate()).padStart(2, '0');
-    const horaActual = String(now.getHours()).padStart(2, '0') + ':' + 
-                      String(now.getMinutes()).padStart(2, '0') + ':' + 
-                      String(now.getSeconds()).padStart(2, '0');
-
-    console.log('📅 [CREATE] Fecha del turno (local):', fechaHoy);
-    console.log('🕒 [CREATE] Hora del turno (local):', horaActual);
 
     // Crear turno
     const query = `
@@ -117,13 +99,29 @@ class Turno {
         i_numero_turno, s_estado, d_fecha, t_hora, 
         uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion
       ) 
-      VALUES (?, 'EN_ESPERA', ?, ?, ?, ?, ?, ?)
+      VALUES (?, 'EN_ESPERA', CURDATE(), CURTIME(), ?, ?, ?, ?)
     `;
 
-    const result = await executeQuery(query, [numeroTurno, fechaHoy, horaActual, uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion]);
+    const result = await executeQuery(query, [numeroTurno, uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion]);
+    
+    // Obtener el UUID del turno creado consultando por el número de turno y fecha
+    const createdTurnQuery = `
+      SELECT uk_turno 
+      FROM Turno 
+      WHERE i_numero_turno = ? AND d_fecha = CURDATE() AND uk_consultorio = ?
+      ORDER BY d_fecha_creacion DESC 
+      LIMIT 1
+    `;
+    
+    const createdTurnResult = await executeQuery(createdTurnQuery, [numeroTurno, uk_consultorio]);
+    
+    if (createdTurnResult.length === 0) {
+      throw new Error('Error obteniendo el turno creado');
+    }
+
     return {
       id: result.insertId,
-      uk_turno: result.insertId, // En MySQL, insertId es el ID generado
+      uk_turno: createdTurnResult[0].uk_turno,
       i_numero_turno: numeroTurno
     };
   }
@@ -373,26 +371,16 @@ class Turno {
 
   // Eliminar turno
   static async delete(uk_turno) {
-    console.log('🔄 [MODEL] delete() recibe UUID:', uk_turno);
-    console.log('🔄 [MODEL] Tipo del UUID:', typeof uk_turno);
-    
     // Verificar existencia del turno
-    const turnoQuery = 'SELECT uk_turno FROM Turno WHERE uk_turno = ? AND ck_estado = "ACTIVO"';
-    console.log('🔍 [MODEL] Ejecutando query de verificación...');
+    const turnoQuery = 'SELECT uk_turno FROM Turno WHERE uk_turno = ?';
     const turno = await executeQuery(turnoQuery, [uk_turno]);
-    console.log('🔍 [MODEL] Turnos encontrados:', turno.length);
 
     if (turno.length === 0) {
-      console.log('❌ [MODEL] El turno no existe o ya está inactivo');
       throw new Error('El turno no existe');
     }
 
-    // ELIMINACIÓN FÍSICA TEMPORAL PARA DEBUG
-    console.log('🔄 [MODEL] Ejecutando eliminación FÍSICA...');
     const query = 'DELETE FROM Turno WHERE uk_turno = ?';
     const result = await executeQuery(query, [uk_turno]);
-    console.log('🔄 [MODEL] Filas afectadas:', result.affectedRows);
-    
     return result.affectedRows > 0;
   }
 

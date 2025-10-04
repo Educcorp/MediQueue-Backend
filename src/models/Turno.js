@@ -121,9 +121,29 @@ class Turno {
     `;
 
     const result = await executeQuery(query, [numeroTurno, fechaHoy, horaActual, uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion]);
+    
+    // Para tablas con UUID como primary key, necesitamos obtener el UUID generado
+    // Obtener el turno recién creado basado en el número de turno, fecha y consultorio
+    const getCreatedTurnoQuery = `
+      SELECT uk_turno FROM Turno 
+      WHERE i_numero_turno = ? 
+        AND d_fecha = ? 
+        AND uk_consultorio = ? 
+        AND ck_estado = 'ACTIVO'
+      ORDER BY d_fecha_creacion DESC 
+      LIMIT 1
+    `;
+    const createdTurnoResult = await executeQuery(getCreatedTurnoQuery, [numeroTurno, fechaHoy, uk_consultorio]);
+    
+    const uk_turno = createdTurnoResult.length > 0 ? createdTurnoResult[0].uk_turno : null;
+    
+    if (!uk_turno) {
+      throw new Error('Error obteniendo el UUID del turno creado');
+    }
+    
     return {
       id: result.insertId,
-      uk_turno: result.insertId, // En MySQL, insertId es el ID generado
+      uk_turno: uk_turno,
       i_numero_turno: numeroTurno
     };
   }
@@ -191,12 +211,13 @@ class Turno {
         p.c_telefono as c_telefono_paciente,
         c.i_numero_consultorio,
         a.s_nombre_area,
-        CONCAT(ad.s_nombre, ' ', ad.s_apellido) as s_nombre_administrador
+        COALESCE(CONCAT(COALESCE(ad.s_nombre, ''), ' ', COALESCE(ad.s_apellido, '')), 'Administrador') as s_nombre_administrador,
+        ad.s_apellido as s_apellido_administrador
       FROM Turno t
       LEFT JOIN Paciente p ON t.uk_paciente = p.uk_paciente
       JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
       JOIN Area a ON c.uk_area = a.uk_area
-      JOIN Administrador ad ON t.uk_administrador = ad.uk_administrador
+      LEFT JOIN Administrador ad ON t.uk_administrador = ad.uk_administrador
       WHERE t.uk_turno = ?
     `;
 

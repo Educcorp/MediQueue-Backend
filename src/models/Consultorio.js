@@ -170,6 +170,99 @@ class Consultorio {
     return results.map(consultorio => new Consultorio(consultorio));
   }
 
+  // Obtener consultorios básicos por área (solo para mostrar en formularios)
+  static async getBasicosPorArea(uk_area) {
+    const query = `
+      SELECT c.uk_consultorio, c.i_numero_consultorio, a.s_nombre_area 
+      FROM Consultorio c
+      JOIN Area a ON c.uk_area = a.uk_area
+      WHERE c.uk_area = ? AND c.ck_estado = 'ACTIVO' AND a.ck_estado = 'ACTIVO'
+      ORDER BY c.i_numero_consultorio
+    `;
+    const results = await executeQuery(query, [uk_area]);
+    return results.map(consultorio => new Consultorio(consultorio));
+  }
+
+  // Obtener estadísticas de flujo de turnos por consultorio
+  static async getEstadisticasFlujo(uk_consultorio, fecha = null) {
+    const fechaCondicion = fecha ? fecha : 'CURDATE()';
+    const query = `
+      SELECT 
+        c.uk_consultorio,
+        c.i_numero_consultorio,
+        a.s_nombre_area,
+        COUNT(CASE WHEN t.s_estado = 'EN_ESPERA' THEN 1 END) as turnos_en_espera,
+        COUNT(CASE WHEN t.s_estado = 'LLAMANDO' THEN 1 END) as turnos_llamando,
+        COUNT(CASE WHEN t.s_estado = 'ATENDIDO' THEN 1 END) as turnos_atendidos,
+        COUNT(CASE WHEN t.s_estado = 'CANCELADO' THEN 1 END) as turnos_cancelados,
+        COUNT(CASE WHEN t.s_estado = 'NO_PRESENTE' THEN 1 END) as turnos_no_presente,
+        AVG(CASE 
+          WHEN t.s_estado = 'ATENDIDO' AND t.d_fecha_atencion IS NOT NULL THEN 
+            TIMESTAMPDIFF(MINUTE, TIMESTAMP(t.d_fecha, t.t_hora), t.d_fecha_atencion)
+          ELSE NULL 
+        END) as tiempo_promedio_atencion_minutos,
+        CASE 
+          WHEN COUNT(CASE WHEN t.s_estado IN ('EN_ESPERA', 'LLAMANDO') THEN 1 END) = 0 THEN 'DISPONIBLE'
+          ELSE 'OCUPADO'
+        END as estado_actual
+      FROM Consultorio c
+      JOIN Area a ON c.uk_area = a.uk_area
+      LEFT JOIN Turno t ON c.uk_consultorio = t.uk_consultorio 
+        AND t.d_fecha = ${fechaCondicion} 
+        AND t.ck_estado = 'ACTIVO'
+      WHERE c.uk_consultorio = ? AND c.ck_estado = 'ACTIVO'
+      GROUP BY c.uk_consultorio, c.i_numero_consultorio, a.s_nombre_area
+    `;
+    const results = await executeQuery(query, [uk_consultorio]);
+    return results.length > 0 ? results[0] : null;
+  }
+
+  // Obtener consultorios con mejor rendimiento por área
+  static async getMejoresConsultoriosPorArea(uk_area, fecha = null) {
+    const fechaCondicion = fecha ? `'${fecha}'` : 'CURDATE()';
+    const query = `
+      SELECT 
+        c.uk_consultorio,
+        c.i_numero_consultorio,
+        a.s_nombre_area,
+        COUNT(CASE WHEN t.s_estado = 'ATENDIDO' THEN 1 END) as turnos_atendidos,
+        COUNT(CASE WHEN t.s_estado IN ('EN_ESPERA', 'LLAMANDO') THEN 1 END) as turnos_pendientes,
+        AVG(CASE 
+          WHEN t.s_estado = 'ATENDIDO' AND t.d_fecha_atencion IS NOT NULL THEN 
+            TIMESTAMPDIFF(MINUTE, TIMESTAMP(t.d_fecha, t.t_hora), t.d_fecha_atencion)
+          ELSE NULL 
+        END) as tiempo_promedio_atencion,
+        CASE 
+          WHEN COUNT(CASE WHEN t.s_estado IN ('EN_ESPERA', 'LLAMANDO') THEN 1 END) = 0 THEN 1
+          ELSE 0
+        END as disponible,
+        -- Calcular eficiencia (turnos atendidos vs tiempo promedio)
+        CASE 
+          WHEN AVG(CASE 
+            WHEN t.s_estado = 'ATENDIDO' AND t.d_fecha_atencion IS NOT NULL THEN 
+              TIMESTAMPDIFF(MINUTE, TIMESTAMP(t.d_fecha, t.t_hora), t.d_fecha_atencion)
+            ELSE NULL 
+          END) IS NULL THEN 0
+          ELSE COUNT(CASE WHEN t.s_estado = 'ATENDIDO' THEN 1 END) / 
+               GREATEST(AVG(CASE 
+                 WHEN t.s_estado = 'ATENDIDO' AND t.d_fecha_atencion IS NOT NULL THEN 
+                   TIMESTAMPDIFF(MINUTE, TIMESTAMP(t.d_fecha, t.t_hora), t.d_fecha_atencion)
+                 ELSE NULL 
+               END), 1)
+        END as eficiencia
+      FROM Consultorio c
+      JOIN Area a ON c.uk_area = a.uk_area
+      LEFT JOIN Turno t ON c.uk_consultorio = t.uk_consultorio 
+        AND t.d_fecha = ${fechaCondicion} 
+        AND t.ck_estado = 'ACTIVO'
+      WHERE c.uk_area = ? AND c.ck_estado = 'ACTIVO'
+      GROUP BY c.uk_consultorio, c.i_numero_consultorio, a.s_nombre_area
+      ORDER BY disponible DESC, eficiencia DESC, turnos_pendientes ASC
+    `;
+    const results = await executeQuery(query, [uk_area]);
+    return results;
+  }
+
   // Actualizar consultorio
   static async update(uk_consultorio, consultorioData) {
     const { i_numero_consultorio, uk_area, uk_usuario_modificacion } = consultorioData;

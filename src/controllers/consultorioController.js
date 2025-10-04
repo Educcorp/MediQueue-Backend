@@ -358,6 +358,43 @@ const getConsultoriosWithStats = asyncHandler(async (req, res) => {
   responses.success(res, consultoriosConStats, 'Consultorios con estadísticas obtenidos exitosamente');
 });
 
+/**
+ * Obtener estadísticas de flujo de turnos por consultorio
+ */
+const getEstadisticasFlujo = asyncHandler(async (req, res) => {
+  const { uk_consultorio } = req.params;
+  const { fecha } = req.query;
+
+  const estadisticas = await Consultorio.getEstadisticasFlujo(uk_consultorio, fecha);
+
+  if (!estadisticas) {
+    return responses.notFound(res, 'Consultorio no encontrado');
+  }
+
+  responses.success(res, estadisticas, 'Estadísticas de flujo obtenidas exitosamente');
+});
+
+/**
+ * Obtener consultorios con mejor rendimiento por área
+ */
+const getMejoresConsultoriosPorArea = asyncHandler(async (req, res) => {
+  const { uk_area } = req.params;
+  const { fecha } = req.query;
+
+  // Verificar que el área existe
+  const area = await Area.getById(uk_area);
+  if (!area) {
+    return responses.notFound(res, 'Área no encontrada');
+  }
+
+  const consultorios = await Consultorio.getMejoresConsultoriosPorArea(uk_area, fecha);
+
+  responses.success(res, {
+    area: area.toJSON(),
+    consultorios: consultorios
+  }, 'Consultorios con mejor rendimiento obtenidos exitosamente');
+});
+
 module.exports = {
   createConsultorio,
   getAllConsultorios,
@@ -375,5 +412,7 @@ module.exports = {
   getTurnoActual,
   llamarSiguienteTurno,
   getConsultoriosBasicosByArea,
-  getConsultoriosWithStats
+  getConsultoriosWithStats,
+  getEstadisticasFlujo,
+  getMejoresConsultoriosPorArea
 };

@@ -61,6 +61,72 @@ router.post('/publico/auto',
 );
 
 /**
+ * @route   POST /api/turnos/inteligente
+ * @desc    Crear turno con asignación inteligente de consultorio
+ * @access  Private (Admin)
+ */
+router.post('/inteligente',
+  verifyToken,
+  requireAdmin,
+  turnoController.createTurnoInteligente
+);
+
+/**
+ * @route   GET /api/turnos/consultorios/area/:uk_area/disponibles
+ * @desc    Obtener consultorios disponibles por área
+ * @access  Private (Admin)
+ */
+router.get('/consultorios/area/:uk_area/disponibles',
+  verifyToken,
+  requireAdmin,
+  turnoController.getConsultoriosDisponiblesPorArea
+);
+
+/**
+ * @route   POST /api/turnos/area/:uk_area/redistribuir
+ * @desc    Redistribuir turnos en un área para optimizar flujo
+ * @access  Private (Admin)
+ */
+router.post('/area/:uk_area/redistribuir',
+  verifyToken,
+  requireAdmin,
+  turnoController.redistribuirTurnosArea
+);
+
+/**
+ * @route   POST /api/turnos/inteligente/monitorear
+ * @desc    Monitorear y reasignar automáticamente turnos según el flujo
+ * @access  Private (Admin)
+ */
+router.post('/inteligente/monitorear',
+  verifyToken,
+  requireAdmin,
+  turnoController.monitorearyReasignarTurnos
+);
+
+/**
+ * @route   GET /api/turnos/area/:uk_area/estadisticas
+ * @desc    Obtener estadísticas de distribución por área
+ * @access  Private (Admin)
+ */
+router.get('/area/:uk_area/estadisticas',
+  verifyToken,
+  requireAdmin,
+  turnoController.getEstadisticasDistribucion
+);
+
+/**
+ * @route   GET /api/turnos/area/:uk_area/consultorio-optimo
+ * @desc    Obtener consultorio óptimo para un área
+ * @access  Private (Admin)
+ */
+router.get('/area/:uk_area/consultorio-optimo',
+  verifyToken,
+  requireAdmin,
+  turnoController.getConsultorioOptimo
+);
+
+/**
  * @route   GET /api/turnos
  * @desc    Obtener todos los turnos con filtros
  * @access  Private (Admin)

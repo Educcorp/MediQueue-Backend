@@ -34,7 +34,7 @@ class Turno {
     let query;
     let params;
     
-    // Obtener fecha local actual (misma lógica que en create)
+    // Obtener fecha local actual usando la misma lógica que en create
     const now = new Date();
     const today = now.getFullYear() + '-' + 
                   String(now.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -518,6 +518,209 @@ class Turno {
 
     const results = await executeQuery(query, params);
     return results.map(turno => new Turno(turno));
+  }
+
+  // Obtener consultorios disponibles por área
+  static async getConsultoriosDisponiblesPorArea(uk_area) {
+    const query = `
+      SELECT 
+        c.uk_consultorio,
+        c.i_numero_consultorio,
+        c.uk_area,
+        a.s_nombre_area,
+        COALESCE(turnos_espera.total_en_espera, 0) as turnos_en_espera,
+        CASE 
+          WHEN turnos_espera.total_en_espera IS NULL OR turnos_espera.total_en_espera = 0 THEN 'DISPONIBLE'
+          ELSE 'OCUPADO'
+        END as estado_disponibilidad
+      FROM Consultorio c
+      JOIN Area a ON c.uk_area = a.uk_area
+      LEFT JOIN (
+        SELECT 
+          uk_consultorio, 
+          COUNT(*) as total_en_espera
+        FROM Turno 
+        WHERE s_estado IN ('EN_ESPERA', 'LLAMANDO') 
+        AND ck_estado = 'ACTIVO'
+        AND d_fecha = CURDATE()
+        GROUP BY uk_consultorio
+      ) turnos_espera ON c.uk_consultorio = turnos_espera.uk_consultorio
+      WHERE c.uk_area = ? 
+      AND c.ck_estado = 'ACTIVO' 
+      AND a.ck_estado = 'ACTIVO'
+      ORDER BY turnos_en_espera ASC, c.i_numero_consultorio ASC
+    `;
+    
+    const results = await executeQuery(query, [uk_area]);
+    return results;
+  }
+
+  // Obtener el mejor consultorio para asignar en un área específica
+  static async getMejorConsultorioParaAsignar(uk_area) {
+    const consultorios = await this.getConsultoriosDisponiblesPorArea(uk_area);
+    
+    if (consultorios.length === 0) {
+      throw new Error('No hay consultorios activos en esta área');
+    }
+
+    // Prioritizar consultorios completamente disponibles
+    const consultoriosDisponibles = consultorios.filter(c => c.estado_disponibilidad === 'DISPONIBLE');
+    
+    if (consultoriosDisponibles.length > 0) {
+      // Si hay consultorios disponibles, elegir el primero (número más bajo)
+      return consultoriosDisponibles[0].uk_consultorio;
+    }
+
+    // Si todos están ocupados, elegir el que tenga menos turnos en espera
+    return consultorios[0].uk_consultorio;
+  }
+
+  // Asignar consultorio de forma inteligente alternando entre disponibles
+  static async asignarConsultorioInteligente(uk_area) {
+    const consultorios = await this.getConsultoriosDisponiblesPorArea(uk_area);
+    
+    if (consultorios.length === 0) {
+      throw new Error('No hay consultorios activos en esta área');
+    }
+
+    // Obtener el último consultorio usado para esta área hoy
+    const ultimoConsultorioQuery = `
+      SELECT t.uk_consultorio 
+      FROM Turno t
+      JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
+      WHERE c.uk_area = ? 
+      AND t.d_fecha = CURDATE() 
+      AND t.ck_estado = 'ACTIVO'
+      ORDER BY t.d_fecha_creacion DESC, t.t_hora DESC
+      LIMIT 1
+    `;
+    
+    const ultimoResult = await executeQuery(ultimoConsultorioQuery, [uk_area]);
+    
+    if (ultimoResult.length === 0) {
+      // Si no hay turnos previos, usar el primer consultorio disponible
+      return consultorios[0].uk_consultorio;
+    }
+
+    const ultimoConsultorio = ultimoResult[0].uk_consultorio;
+    const consultoriosActivos = consultorios.map(c => c.uk_consultorio);
+    const indiceUltimo = consultoriosActivos.indexOf(ultimoConsultorio);
+    
+    // Alternar al siguiente consultorio en la lista
+    const siguienteIndice = (indiceUltimo + 1) % consultoriosActivos.length;
+    return consultoriosActivos[siguienteIndice];
+  }
+
+  // Redistribuir turnos a consultorios más rápidos
+  static async redistribuirTurnos(uk_area) {
+    const consultorios = await this.getConsultoriosDisponiblesPorArea(uk_area);
+    
+    if (consultorios.length < 2) {
+      return { redistribuidos: 0, mensaje: 'Se necesitan al menos 2 consultorios para redistribuir' };
+    }
+
+    // Encontrar consultorios disponibles
+    const consultoriosDisponibles = consultorios.filter(c => c.estado_disponibilidad === 'DISPONIBLE');
+    const consultoriosOcupados = consultorios.filter(c => c.estado_disponibilidad === 'OCUPADO');
+
+    if (consultoriosDisponibles.length === 0) {
+      return { redistribuidos: 0, mensaje: 'No hay consultorios disponibles para redistribuir' };
+    }
+
+    let redistribuidos = 0;
+
+    // Redistribuir desde consultorios más ocupados a menos ocupados
+    for (const consultorioOcupado of consultoriosOcupados) {
+      // Obtener turnos en espera del consultorio ocupado
+      const turnosEnEspera = await executeQuery(`
+        SELECT uk_turno 
+        FROM Turno 
+        WHERE uk_consultorio = ? 
+        AND s_estado = 'EN_ESPERA' 
+        AND d_fecha = CURDATE() 
+        AND ck_estado = 'ACTIVO'
+        ORDER BY i_numero_turno ASC
+      `, [consultorioOcupado.uk_consultorio]);
+
+      // Si hay más de 3 turnos en espera, mover algunos al consultorio disponible
+      if (turnosEnEspera.length > 3) {
+        const consultorioDestino = consultoriosDisponibles[0];
+        const turnosAMover = Math.min(2, turnosEnEspera.length - 2); // Mover hasta 2 turnos
+
+        for (let i = 0; i < turnosAMover; i++) {
+          await executeQuery(`
+            UPDATE Turno 
+            SET uk_consultorio = ?, 
+                uk_usuario_modificacion = NULL,
+                d_fecha_modificacion = NOW()
+            WHERE uk_turno = ?
+          `, [consultorioDestino.uk_consultorio, turnosEnEspera[i].uk_turno]);
+          
+          redistribuidos++;
+        }
+
+        // Actualizar estado del consultorio destino
+        consultorioDestino.estado_disponibilidad = 'OCUPADO';
+        consultorioDestino.turnos_en_espera += turnosAMover;
+        
+        // Remover de disponibles si ya tiene turnos asignados
+        if (consultorioDestino.turnos_en_espera > 0) {
+          const index = consultoriosDisponibles.indexOf(consultorioDestino);
+          if (index > -1) {
+            consultoriosDisponibles.splice(index, 1);
+          }
+        }
+
+        // Si no hay más consultorios disponibles, terminar
+        if (consultoriosDisponibles.length === 0) {
+          break;
+        }
+      }
+    }
+
+    return { 
+      redistribuidos, 
+      mensaje: `Se redistribuyeron ${redistribuidos} turnos para optimizar el flujo` 
+    };
+  }
+
+  // Crear turno con asignación inteligente de consultorio
+  static async createConAsignacionInteligente(turnoData) {
+    const { uk_administrador, uk_paciente = null, uk_usuario_creacion, uk_area } = turnoData;
+
+    if (!uk_area) {
+      throw new Error('El área es requerida para la asignación inteligente');
+    }
+
+    // Verificar que el área existe
+    const areaQuery = 'SELECT uk_area FROM Area WHERE uk_area = ? AND ck_estado = "ACTIVO"';
+    const areaExists = await executeQuery(areaQuery, [uk_area]);
+
+    if (areaExists.length === 0) {
+      throw new Error('El área especificada no existe o está inactiva');
+    }
+
+    // Asignar consultorio de forma inteligente
+    const uk_consultorio = await this.asignarConsultorioInteligente(uk_area);
+
+    // Crear el turno con el consultorio asignado
+    const result = await this.create({
+      uk_consultorio,
+      uk_administrador,
+      uk_paciente,
+      uk_usuario_creacion
+    });
+
+    // Intentar redistribuir turnos para optimizar flujo
+    setTimeout(async () => {
+      try {
+        await this.redistribuirTurnos(uk_area);
+      } catch (error) {
+        console.error('Error en redistribución automática:', error);
+      }
+    }, 1000); // Ejecutar después de 1 segundo para no bloquear la respuesta
+
+    return result;
   }
 
   // Convertir a objeto público

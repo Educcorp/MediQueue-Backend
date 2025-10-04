@@ -2,6 +2,7 @@ const Turno = require('../models/Turno');
 const Paciente = require('../models/Paciente');
 const Consultorio = require('../models/Consultorio');
 const Administrador = require('../models/Administrador');
+const ConsultorioInteligenteService = require('../services/consultorioInteligenteService');
 const responses = require('../utils/responses');
 const { asyncHandler } = require('../middleware/errorHandler');
 
@@ -626,10 +627,241 @@ const createTurnoPublicoAuto = asyncHandler(async (req, res) => {
     responses.created(res, responseData, 'Turno creado exitosamente con asignación automática de consultorio');
 });
 
+/**
+ * Obtener consultorios disponibles por área con información inteligente
+ */
+const getConsultoriosDisponiblesPorArea = asyncHandler(async (req, res) => {
+    const { uk_area } = req.params;
+    const { fecha } = req.query;
+
+    // Verificar que el área existe
+    const Area = require('../models/Area');
+    const area = await Area.getById(uk_area);
+    if (!area) {
+        return responses.notFound(res, 'Área no encontrada');
+    }
+
+    const consultorios = await ConsultorioInteligenteService.getConsultoriosDisponiblesPorArea(uk_area, fecha);
+    const estadisticas = await ConsultorioInteligenteService.getEstadisticasDistribucion(uk_area, fecha);
+
+    responses.success(res, {
+        area: area.toJSON(),
+        consultorios: consultorios,
+        estadisticas: estadisticas
+    }, 'Consultorios disponibles obtenidos exitosamente');
+});
+
+/**
+ * Redistribuir turnos en un área para optimizar flujo
+ */
+const redistribuirTurnosArea = asyncHandler(async (req, res) => {
+    const { uk_area } = req.params;
+    const { forzar } = req.body;
+
+    // Verificar que el área existe
+    const Area = require('../models/Area');
+    const area = await Area.getById(uk_area);
+    if (!area) {
+        return responses.notFound(res, 'Área no encontrada');
+    }
+
+    let resultado;
+    if (forzar) {
+        resultado = await ConsultorioInteligenteService.redistribucionForzada(uk_area);
+    } else {
+        resultado = await ConsultorioInteligenteService.redistribuirTurnosPendientes(uk_area);
+    }
+
+    responses.success(res, {
+        area: area.s_nombre_area,
+        resultado: resultado
+    }, 'Redistribución de turnos completada');
+});
+
+/**
+ * Crear turno con asignación inteligente (endpoint para administradores)
+ */
+const createTurnoInteligente = asyncHandler(async (req, res) => {
+    const { uk_area, uk_paciente } = req.body;
+    const uk_administrador = req.user.uk_administrador;
+    const uk_usuario_creacion = req.user.uk_administrador;
+
+    // Verificar que el área existe
+    const Area = require('../models/Area');
+    const area = await Area.getById(uk_area);
+    if (!area) {
+        return responses.notFound(res, 'Área no encontrada');
+    }
+
+    // Si se proporciona uk_paciente, verificar que existe
+    if (uk_paciente) {
+        const paciente = await Paciente.getById(uk_paciente);
+        if (!paciente) {
+            return responses.notFound(res, 'Paciente no encontrado');
+        }
+    }
+
+    // Crear turno con asignación inteligente usando el nuevo servicio
+    const turnoResult = await ConsultorioInteligenteService.asignarTurnoInteligente({
+        uk_area,
+        uk_paciente: uk_paciente || null,
+        uk_administrador,
+        uk_usuario_creacion
+    });
+
+    // Obtener turno completo con información detallada
+    const turnoCompleto = await Turno.getById(turnoResult.uk_turno);
+
+    responses.created(res, {
+        turno: turnoCompleto,
+        area: area.s_nombre_area,
+        consultorio_asignado: turnoResult.consultorio_asignado,
+        mensaje: 'Turno creado con asignación inteligente de consultorio'
+    }, 'Turno creado exitosamente con asignación inteligente');
+});
+
+/**
+ * Actualizar función createTurnoPublicoAuto para usar asignación inteligente
+ */
+const updateCreateTurnoPublicoAuto = asyncHandler(async (req, res) => {
+    const { uk_area, paciente } = req.body;
+
+    console.log('🎫 Creando turno con asignación automática:', { uk_area, paciente });
+
+    // Verificar que el área existe
+    const Area = require('../models/Area');
+    const area = await Area.getById(uk_area);
+    if (!area) {
+        return responses.notFound(res, 'Área no encontrada');
+    }
+
+    console.log('✅ Área encontrada:', area.s_nombre_area);
+
+    // Verificar si el paciente ya existe (por teléfono)
+    let uk_paciente = null;
+    if (paciente && paciente.c_telefono) {
+        console.log('📞 Buscando paciente por teléfono:', paciente.c_telefono);
+        const pacienteExistente = await Paciente.getByPhone(paciente.c_telefono);
+        
+        if (pacienteExistente) {
+            uk_paciente = pacienteExistente.uk_paciente;
+            console.log('✅ Paciente existente encontrado:', uk_paciente);
+        } else {
+            // Crear nuevo paciente
+            uk_paciente = await Paciente.create({
+                s_nombre: paciente.s_nombre || 'Paciente',
+                s_apellido: paciente.s_apellido || 'Invitado',
+                c_telefono: paciente.c_telefono,
+                d_fecha_nacimiento: paciente.d_fecha_nacimiento || '1990-01-01',
+                s_email: paciente.s_email || null,
+                uk_usuario_creacion: null // Usuario público
+            });
+            console.log('✅ Paciente creado con UUID:', uk_paciente);
+        }
+    }
+
+    // Obtener cualquier administrador activo para asignar el turno
+    const anyAdminId = await Administrador.getAnyId();
+    if (!anyAdminId) {
+        console.log('❌ No hay administradores disponibles');
+        return responses.error(res, 'No hay administradores disponibles en el sistema', 400);
+    }
+    console.log('👨‍💼 Administrador asignado:', anyAdminId);
+
+    // Crear turno con asignación inteligente de consultorio usando el nuevo servicio
+    const turnoResult = await ConsultorioInteligenteService.asignarTurnoInteligente({
+        uk_area,
+        uk_paciente: uk_paciente,
+        uk_administrador: anyAdminId,
+        uk_usuario_creacion: null // Usuario público
+    });
+
+    console.log('✅ Turno creado con UUID:', turnoResult.uk_turno);
+
+    // Obtener turno completo con información detallada
+    const turnoCompleto = await Turno.getById(turnoResult.uk_turno);
+
+    if (!turnoCompleto) {
+        return responses.error(res, 'Error obteniendo información del turno creado', 500);
+    }
+
+    console.log('✅ Turno completo obtenido:', turnoCompleto);
+
+    const responseData = {
+        turno: turnoCompleto,
+        paciente_registrado: !!uk_paciente,
+        area: area.s_nombre_area,
+        consultorio_asignado: turnoResult.consultorio_asignado,
+        mensaje: 'Turno creado con asignación automática inteligente de consultorio'
+    };
+
+    responses.created(res, responseData, 'Turno creado exitosamente con asignación automática inteligente');
+});
+
+/**
+ * Monitorear y reasignar automáticamente turnos según el flujo
+ */
+const monitorearyReasignarTurnos = asyncHandler(async (req, res) => {
+    const { uk_area } = req.body;
+
+    const resultado = await ConsultorioInteligenteService.monitorearyReasignar(uk_area);
+
+    responses.success(res, resultado, 'Monitoreo y reasignación completada');
+});
+
+/**
+ * Obtener estadísticas de distribución por área
+ */
+const getEstadisticasDistribucion = asyncHandler(async (req, res) => {
+    const { uk_area } = req.params;
+    const { fecha } = req.query;
+
+    // Verificar que el área existe
+    const Area = require('../models/Area');
+    const area = await Area.getById(uk_area);
+    if (!area) {
+        return responses.notFound(res, 'Área no encontrada');
+    }
+
+    const estadisticas = await ConsultorioInteligenteService.getEstadisticasDistribucion(uk_area, fecha);
+
+    if (!estadisticas) {
+        return responses.notFound(res, 'No se encontraron estadísticas para el área especificada');
+    }
+
+    responses.success(res, {
+        area: area.s_nombre_area,
+        estadisticas: estadisticas
+    }, 'Estadísticas de distribución obtenidas exitosamente');
+});
+
+/**
+ * Obtener consultorio óptimo para un área
+ */
+const getConsultorioOptimo = asyncHandler(async (req, res) => {
+    const { uk_area } = req.params;
+    const { fecha } = req.query;
+
+    // Verificar que el área existe
+    const Area = require('../models/Area');
+    const area = await Area.getById(uk_area);
+    if (!area) {
+        return responses.notFound(res, 'Área no encontrada');
+    }
+
+    const consultorioOptimo = await ConsultorioInteligenteService.getConsultorioOptimo(uk_area, fecha);
+
+    responses.success(res, {
+        area: area.s_nombre_area,
+        consultorio_optimo: consultorioOptimo
+    }, 'Consultorio óptimo obtenido exitosamente');
+});
+
 module.exports = {
     // Endpoints autenticados
     createTurno,
     createTurnoWithPaciente,
+    createTurnoInteligente,
     getTurnos,
     getTurnoById,
     getTurnosByPaciente,
@@ -642,6 +874,13 @@ module.exports = {
     deleteTurno,
     getEstadisticasDelDia,
     getTurnosByDateRange,
+    getConsultoriosDisponiblesPorArea,
+    redistribuirTurnosArea,
+    
+    // Endpoints inteligentes
+    monitorearyReasignarTurnos,
+    getEstadisticasDistribucion,
+    getConsultorioOptimo,
 
     // Endpoints públicos
     createTurnoPublico,

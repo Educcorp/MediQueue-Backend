@@ -178,6 +178,43 @@ router.post('/:uk_consultorio/siguiente-turno',
 );
 
 /**
+ * @route   GET /api/consultorios/area/:uk_area/basicos
+ * @desc    Obtener consultorios básicos por área
+ * @access  Public (para generar turnos)
+ */
+router.get('/area/:uk_area/basicos',
+  getConsultoriosByAreaValidation,
+  handleValidationErrors,
+  consultorioController.getConsultoriosBasicosByArea
+);
+
+/**
+ * @route   GET /api/consultorios/:uk_consultorio/estadisticas-flujo
+ * @desc    Obtener estadísticas de flujo de turnos por consultorio
+ * @access  Private (Admin)
+ */
+router.get('/:uk_consultorio/estadisticas-flujo',
+  verifyToken,
+  requireAdmin,
+  getConsultorioValidation,
+  handleValidationErrors,
+  consultorioController.getEstadisticasFlujo
+);
+
+/**
+ * @route   GET /api/consultorios/area/:uk_area/mejores
+ * @desc    Obtener consultorios con mejor rendimiento por área
+ * @access  Private (Admin)
+ */
+router.get('/area/:uk_area/mejores',
+  verifyToken,
+  requireAdmin,
+  getConsultoriosByAreaValidation,
+  handleValidationErrors,
+  consultorioController.getMejoresConsultoriosPorArea
+);
+
+/**
  * @route   PUT /api/consultorios/:uk_consultorio
  * @desc    Actualizar consultorio
  * @access  Private (Admin)

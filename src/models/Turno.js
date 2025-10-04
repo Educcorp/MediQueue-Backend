@@ -260,6 +260,7 @@ class Turno {
       SELECT 
         t.i_numero_turno,
         t.s_estado,
+        t.d_fecha,
         COALESCE(p.s_nombre, 'Paciente') as s_nombre_paciente,
         COALESCE(p.s_apellido, 'Invitado') as s_apellido_paciente,
         c.i_numero_consultorio,
@@ -271,10 +272,10 @@ class Turno {
       LEFT JOIN Paciente p ON t.uk_paciente = p.uk_paciente
       JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
       JOIN Area a ON c.uk_area = a.uk_area
-      WHERE t.d_fecha = CURDATE() 
+      WHERE t.d_fecha >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
       AND t.s_estado IN ('EN_ESPERA', 'LLAMANDO') 
       AND t.ck_estado = 'ACTIVO'
-      ORDER BY t.i_numero_turno ASC
+      ORDER BY t.d_fecha DESC, t.i_numero_turno ASC
     `;
 
     const results = await executeQuery(query);

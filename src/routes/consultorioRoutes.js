@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 
 const consultorioController = require('../controllers/consultorioController');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
-const { 
-  createConsultorioValidation, 
-  updateConsultorioValidation, 
+const {
+  createConsultorioValidation,
+  updateConsultorioValidation,
   getConsultorioValidation,
   getConsultoriosByAreaValidation,
-  llamarSiguienteConsultorioValidation
+  llamarSiguienteConsultorioValidation,
+  getEstadisticasPorFechaValidation
 } = require('../validations/consultorioValidation');
 
 /**
@@ -17,8 +18,9 @@ const {
  * @desc    Crear un nuevo consultorio
  * @access  Private (Admin)
  */
-router.post('/', 
+router.post('/',
   verifyToken,
+  requireAdmin,
   createConsultorioValidation,
   handleValidationErrors,
   consultorioController.createConsultorio
@@ -26,12 +28,24 @@ router.post('/',
 
 /**
  * @route   GET /api/consultorios
- * @desc    Obtener todos los consultorios
+ * @desc    Obtener todos los consultorios activos
  * @access  Private (Admin)
  */
-router.get('/', 
+router.get('/',
   verifyToken,
+  requireAdmin,
   consultorioController.getAllConsultorios
+);
+
+/**
+ * @route   GET /api/consultorios/all
+ * @desc    Obtener todos los consultorios (incluyendo inactivos)
+ * @access  Private (Super Admin)
+ */
+router.get('/all',
+  verifyToken,
+  requireSuperAdmin,
+  consultorioController.getAllConsultoriosWithInactive
 );
 
 /**
@@ -39,96 +53,164 @@ router.get('/',
  * @desc    Obtener consultorios básicos (para generar turnos)
  * @access  Public (para generar turnos)
  */
-router.get('/basicos', 
-  consultorioController.getAllConsultorios
+router.get('/basicos',
+  consultorioController.getConsultoriosBasicos
 );
 
 /**
  * @route   GET /api/consultorios/disponibles
  * @desc    Obtener consultorios disponibles (sin turnos en espera o llamando)
- * @access  Private (Admin) / Public (para generar turnos)
+ * @access  Public (para generar turnos)
  */
-router.get('/disponibles', 
+router.get('/disponibles',
   consultorioController.getConsultoriosDisponibles
 );
 
 /**
- * @route   GET /api/consultorios/:id
- * @desc    Obtener consultorio por ID
+ * @route   GET /api/consultorios/with-stats
+ * @desc    Obtener consultorios con estadísticas del día
  * @access  Private (Admin)
  */
-router.get('/:id', 
+router.get('/with-stats',
   verifyToken,
+  requireAdmin,
+  consultorioController.getConsultoriosWithStats
+);
+
+/**
+ * @route   GET /api/consultorios/:uk_consultorio
+ * @desc    Obtener consultorio por UUID
+ * @access  Private (Admin)
+ */
+router.get('/:uk_consultorio',
+  verifyToken,
+  requireAdmin,
   getConsultorioValidation,
   handleValidationErrors,
   consultorioController.getConsultorioById
 );
 
 /**
- * @route   GET /api/consultorios/area/:id_area
+ * @route   GET /api/consultorios/area/:uk_area
  * @desc    Obtener consultorios por área
- * @access  Private (Admin) / Public (para generar turnos)
+ * @access  Public (para generar turnos)
  */
-router.get('/area/:id_area', 
+router.get('/area/:uk_area',
   getConsultoriosByAreaValidation,
   handleValidationErrors,
   consultorioController.getConsultoriosByArea
 );
 
 /**
- * @route   GET /api/consultorios/area/:id_area/basicos
+ * @route   GET /api/consultorios/area/:uk_area/basicos
  * @desc    Obtener consultorios básicos por área (para selects)
- * @access  Private (Admin) / Public (para generar turnos)
+ * @access  Public (para generar turnos)
  */
-router.get('/area/:id_area/basicos', 
+router.get('/area/:uk_area/basicos',
   getConsultoriosByAreaValidation,
   handleValidationErrors,
   consultorioController.getConsultoriosBasicosByArea
 );
 
 /**
- * @route   GET /api/consultorios/:id/estadisticas
+ * @route   GET /api/consultorios/:uk_consultorio/estadisticas
  * @desc    Obtener estadísticas de turnos del consultorio
  * @access  Private (Admin)
  */
-router.get('/:id/estadisticas', 
+router.get('/:uk_consultorio/estadisticas',
   verifyToken,
+  requireAdmin,
   getConsultorioValidation,
   handleValidationErrors,
   consultorioController.getEstadisticasTurnos
 );
 
 /**
- * @route   POST /api/consultorios/:id/siguiente-turno
+ * @route   GET /api/consultorios/:uk_consultorio/estadisticas-por-fecha
+ * @desc    Obtener estadísticas de turnos del consultorio por rango de fechas
+ * @access  Private (Admin)
+ */
+router.get('/:uk_consultorio/estadisticas-por-fecha',
+  verifyToken,
+  requireAdmin,
+  getEstadisticasPorFechaValidation,
+  handleValidationErrors,
+  consultorioController.getEstadisticasTurnosPorFecha
+);
+
+/**
+ * @route   GET /api/consultorios/:uk_consultorio/disponible
+ * @desc    Verificar si el consultorio está disponible
+ * @access  Private (Admin)
+ */
+router.get('/:uk_consultorio/disponible',
+  verifyToken,
+  requireAdmin,
+  getConsultorioValidation,
+  handleValidationErrors,
+  consultorioController.isConsultorioDisponible
+);
+
+/**
+ * @route   GET /api/consultorios/:uk_consultorio/turno-actual
+ * @desc    Obtener turno actual del consultorio
+ * @access  Private (Admin)
+ */
+router.get('/:uk_consultorio/turno-actual',
+  verifyToken,
+  requireAdmin,
+  getConsultorioValidation,
+  handleValidationErrors,
+  consultorioController.getTurnoActual
+);
+
+/**
+ * @route   POST /api/consultorios/:uk_consultorio/siguiente-turno
  * @desc    Llamar siguiente turno en el consultorio
  * @access  Private (Admin)
  */
-router.post('/:id/siguiente-turno', 
+router.post('/:uk_consultorio/siguiente-turno',
   verifyToken,
+  requireAdmin,
   llamarSiguienteConsultorioValidation,
   handleValidationErrors,
   consultorioController.llamarSiguienteTurno
 );
 
 /**
- * @route   PUT /api/consultorios/:id
+ * @route   PUT /api/consultorios/:uk_consultorio
  * @desc    Actualizar consultorio
  * @access  Private (Admin)
  */
-router.put('/:id', 
+router.put('/:uk_consultorio',
   verifyToken,
+  requireAdmin,
   updateConsultorioValidation,
   handleValidationErrors,
   consultorioController.updateConsultorio
 );
 
 /**
- * @route   DELETE /api/consultorios/:id
- * @desc    Eliminar consultorio
- * @access  Private (Admin)
+ * @route   PUT /api/consultorios/:uk_consultorio/soft-delete
+ * @desc    Desactivar consultorio (soft delete)
+ * @access  Private (Super Admin)
  */
-router.delete('/:id', 
+router.put('/:uk_consultorio/soft-delete',
   verifyToken,
+  requireSuperAdmin,
+  getConsultorioValidation,
+  handleValidationErrors,
+  consultorioController.softDeleteConsultorio
+);
+
+/**
+ * @route   DELETE /api/consultorios/:uk_consultorio
+ * @desc    Eliminar consultorio (hard delete)
+ * @access  Private (Super Admin)
+ */
+router.delete('/:uk_consultorio',
+  verifyToken,
+  requireSuperAdmin,
   getConsultorioValidation,
   handleValidationErrors,
   consultorioController.deleteConsultorio

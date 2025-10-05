@@ -6,17 +6,17 @@ const responses = require('../utils/responses');
  */
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
-  
+
   if (!errors.isEmpty()) {
     const formattedErrors = errors.array().map(error => ({
       field: error.param,
       message: error.msg,
       value: error.value
     }));
-    
+
     return responses.validationError(res, formattedErrors, 'Error de validación en los datos proporcionados');
   }
-  
+
   next();
 };
 
@@ -30,7 +30,7 @@ const paginationValidation = [
     req.query.page = Math.max(1, page);
     next();
   },
-  
+
   // limit debe ser un entero entre 1 y 100, por defecto 10
   (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
@@ -54,7 +54,7 @@ const dateRangeValidation = [
     }
     next();
   },
-  
+
   // fecha_fin opcional, debe ser fecha válida y posterior a fecha_inicio
   (req, res, next) => {
     const { fecha_inicio, fecha_fin } = req.query;
@@ -63,7 +63,7 @@ const dateRangeValidation = [
       if (isNaN(fechaFin.getTime())) {
         return responses.validationError(res, [{ field: 'fecha_fin', message: 'Fecha de fin inválida' }]);
       }
-      
+
       if (fecha_inicio) {
         const fechaInicio = new Date(fecha_inicio);
         if (fechaFin < fechaInicio) {
@@ -82,21 +82,106 @@ const sanitizeSearchParams = (req, res, next) => {
   if (req.query.search) {
     req.query.search = req.query.search.trim().substring(0, 100);
   }
+  if (req.query.term) {
+    req.query.term = req.query.term.trim().substring(0, 100);
+  }
   next();
 };
 
 /**
- * Validar que el ID en el parámetro coincida con el ID en el cuerpo (para operaciones de actualización)
+ * Validar que el UUID en el parámetro coincida con el UUID en el cuerpo (para operaciones de actualización)
  */
-const validateIdMatch = (req, res, next) => {
-  const paramId = parseInt(req.params.id);
-  const bodyId = req.body.id;
-  
-  if (bodyId && parseInt(bodyId) !== paramId) {
-    return responses.validationError(res, [{ field: 'id', message: 'El ID en la URL no coincide con el ID en el cuerpo de la petición' }]);
+const validateUUIDMatch = (req, res, next) => {
+  const paramUUID = req.params.uk_administrador || req.params.uk_paciente || req.params.uk_turno || req.params.uk_consultorio || req.params.uk_area;
+  const bodyUUID = req.body.uk_administrador || req.body.uk_paciente || req.body.uk_turno || req.body.uk_consultorio || req.body.uk_area;
+
+  if (bodyUUID && bodyUUID !== paramUUID) {
+    return responses.validationError(res, [{ field: 'uuid', message: 'El UUID en la URL no coincide con el UUID en el cuerpo de la petición' }]);
   }
-  
+
   next();
+};
+
+/**
+ * Validar formato de UUID
+ */
+const validateUUID = (field) => {
+  return (req, res, next) => {
+    const value = req.params[field] || req.body[field];
+    if (value) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        return responses.validationError(res, [{ field, message: 'Formato de UUID inválido' }]);
+      }
+    }
+    next();
+  };
+};
+
+/**
+ * Validar que al menos un campo sea proporcionado en actualizaciones
+ */
+const validateAtLeastOneField = (fields) => {
+  return (req, res, next) => {
+    const hasAtLeastOne = fields.some(field => req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== '');
+
+    if (!hasAtLeastOne) {
+      return responses.validationError(res, [{
+        field: 'body',
+        message: `Al menos uno de los siguientes campos debe ser proporcionado: ${fields.join(', ')}`
+      }]);
+    }
+
+    next();
+  };
+};
+
+/**
+ * Sanitizar strings para prevenir inyección
+ */
+const sanitizeStrings = (req, res, next) => {
+  const sanitizeObject = (obj) => {
+    for (const key in obj) {
+      if (typeof obj[key] === 'string') {
+        obj[key] = obj[key].trim();
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        sanitizeObject(obj[key]);
+      }
+    }
+  };
+
+  sanitizeObject(req.body);
+  next();
+};
+
+/**
+ * Validar límites de tamaño de archivo (si se implementa subida de archivos)
+ */
+const validateFileSize = (maxSizeInMB = 5) => {
+  return (req, res, next) => {
+    if (req.file && req.file.size > maxSizeInMB * 1024 * 1024) {
+      return responses.validationError(res, [{
+        field: 'file',
+        message: `El archivo no puede exceder ${maxSizeInMB}MB`
+      }]);
+    }
+    next();
+  };
+};
+
+/**
+ * Validar tipos de archivo permitidos (si se implementa subida de archivos)
+ */
+const validateFileType = (allowedTypes = ['image/jpeg', 'image/png', 'image/gif']) => {
+  return (req, res, next) => {
+    if (req.file && !allowedTypes.includes(req.file.mimetype)) {
+      return responses.validationError(res, [{
+        field: 'file',
+        message: `Tipo de archivo no permitido. Tipos permitidos: ${allowedTypes.join(', ')}`
+      }]);
+    }
+    next();
+  };
 };
 
 module.exports = {
@@ -104,5 +189,10 @@ module.exports = {
   paginationValidation,
   dateRangeValidation,
   sanitizeSearchParams,
-  validateIdMatch
+  validateUUIDMatch,
+  validateUUID,
+  validateAtLeastOneField,
+  sanitizeStrings,
+  validateFileSize,
+  validateFileType
 };

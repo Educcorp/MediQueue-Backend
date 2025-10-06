@@ -151,8 +151,13 @@ class Turno {
       whereConditions.push('t.d_fecha = ?');
       params.push(filters.fecha);
     } else {
-      // Por defecto mostrar solo turnos del día actual
-      whereConditions.push('t.d_fecha = CURDATE()');
+      // Por defecto mostrar solo turnos del día actual (fecha local)
+      const ahora = new Date();
+      const fechaLocal = ahora.getFullYear() + '-' + 
+                        String(ahora.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(ahora.getDate()).padStart(2, '0');
+      whereConditions.push('t.d_fecha = ?');
+      params.push(fechaLocal);
     }
 
     if (filters.estado) {

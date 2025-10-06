@@ -257,6 +257,8 @@ class Turno {
       SELECT 
         t.i_numero_turno,
         t.s_estado,
+        t.d_fecha,
+        t.ck_estado,
         COALESCE(p.s_nombre, 'Paciente') as s_nombre_paciente,
         COALESCE(p.s_apellido, 'Invitado') as s_apellido_paciente,
         c.i_numero_consultorio,
@@ -269,8 +271,7 @@ class Turno {
       JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
       JOIN Area a ON c.uk_area = a.uk_area
       WHERE t.d_fecha = CURDATE() 
-      AND t.s_estado IN ('EN_ESPERA', 'LLAMANDO') 
-      AND t.ck_estado = 'ACTIVO'
+      AND t.s_estado IN ('EN_ESPERA', 'LLAMANDO', 'EN_ATENCION') 
       ORDER BY t.i_numero_turno ASC
     `;
 

@@ -12,11 +12,11 @@ const config = {
 
   // Configuración de base de datos
   database: {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    name: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD
+    host: process.env.MYSQL_HOST || process.env.DB_HOST,
+    port: process.env.MYSQL_PORT || process.env.DB_PORT,
+    name: process.env.MYSQL_DATABASE || process.env.DB_NAME,
+    user: process.env.MYSQL_USER || process.env.DB_USER,
+    password: process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD
   },
 
   // Configuración CORS

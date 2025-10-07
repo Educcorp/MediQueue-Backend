@@ -1,4 +1,5 @@
 const { executeQuery } = require('../config/database');
+const { getCurrentDate, getCurrentTime, getCurrentDateTime } = require('../utils/dateUtils');
 
 class Turno {
   constructor(data) {
@@ -40,17 +41,17 @@ class Turno {
         SELECT COALESCE(MAX(t.i_numero_turno), 0) + 1 as next_numero 
         FROM Turno t
         JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
-        WHERE c.uk_area = ? AND t.d_fecha = CURDATE() AND t.ck_estado = 'ACTIVO'
+        WHERE c.uk_area = ? AND DATE(t.d_fecha) = DATE(?) AND t.ck_estado = 'ACTIVO'
       `;
-      params = [uk_area];
+      params = [uk_area, getCurrentDate()];
     } else {
       // Fallback: generar número global si no se especifica área
       query = `
         SELECT COALESCE(MAX(i_numero_turno), 0) + 1 as next_numero 
         FROM Turno 
-        WHERE d_fecha = CURDATE() AND ck_estado = 'ACTIVO'
+        WHERE DATE(d_fecha) = DATE(?) AND ck_estado = 'ACTIVO'
       `;
-      params = [];
+      params = [getCurrentDate()];
     }
     
     const result = await executeQuery(query, params);
@@ -94,26 +95,40 @@ class Turno {
     const numeroTurno = await this.getNextNumeroTurno(uk_area);
 
     // Crear turno
+    const fechaCreacion = getCurrentDateTime();
+    const fechaActual = getCurrentDate();
+    const horaActual = getCurrentTime();
+    
     const query = `
       INSERT INTO Turno (
         i_numero_turno, s_estado, d_fecha, t_hora, 
-        uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion
+        uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion,
+        d_fecha_creacion
       ) 
-      VALUES (?, 'EN_ESPERA', CURDATE(), CURTIME(), ?, ?, ?, ?)
+      VALUES (?, 'EN_ESPERA', ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const result = await executeQuery(query, [numeroTurno, uk_paciente, uk_consultorio, uk_administrador, uk_usuario_creacion]);
+    const result = await executeQuery(query, [
+      numeroTurno, 
+      fechaActual, 
+      horaActual, 
+      uk_paciente, 
+      uk_consultorio, 
+      uk_administrador, 
+      uk_usuario_creacion,
+      fechaCreacion
+    ]);
     
     // Obtener el UUID del turno creado consultando por el número de turno y fecha
     const createdTurnQuery = `
       SELECT uk_turno 
       FROM Turno 
-      WHERE i_numero_turno = ? AND d_fecha = CURDATE() AND uk_consultorio = ?
+      WHERE i_numero_turno = ? AND DATE(d_fecha) = DATE(?) AND uk_consultorio = ?
       ORDER BY d_fecha_creacion DESC 
       LIMIT 1
     `;
     
-    const createdTurnResult = await executeQuery(createdTurnQuery, [numeroTurno, uk_consultorio]);
+    const createdTurnResult = await executeQuery(createdTurnQuery, [numeroTurno, fechaActual, uk_consultorio]);
     
     if (createdTurnResult.length === 0) {
       throw new Error('Error obteniendo el turno creado');
@@ -137,7 +152,8 @@ class Turno {
       params.push(filters.fecha);
     } else {
       // Por defecto mostrar solo turnos del día actual
-      whereConditions.push('t.d_fecha = CURDATE()');
+      whereConditions.push('DATE(t.d_fecha) = DATE(?)');
+      params.push(getCurrentDate());
     }
 
     if (filters.estado) {
@@ -248,13 +264,13 @@ class Turno {
       LEFT JOIN Paciente p ON t.uk_paciente = p.uk_paciente
       JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
       JOIN Area a ON c.uk_area = a.uk_area
-      WHERE t.d_fecha = CURDATE() 
+      WHERE DATE(t.d_fecha) = DATE(?) 
       AND t.s_estado IN ('EN_ESPERA', 'LLAMANDO') 
       AND t.ck_estado = 'ACTIVO'
       ORDER BY t.i_numero_turno ASC
     `;
 
-    const results = await executeQuery(query);
+    const results = await executeQuery(query, [getCurrentDate()]);
     return results;
   }
 
@@ -270,10 +286,10 @@ class Turno {
       UPDATE Turno 
       SET s_estado = ?, 
           uk_usuario_modificacion = ?,
-          d_fecha_modificacion = NOW()
+          d_fecha_modificacion = ?
       WHERE uk_turno = ?
     `;
-    const result = await executeQuery(query, [nuevoEstado, uk_usuario_modificacion, uk_turno]);
+    const result = await executeQuery(query, [nuevoEstado, uk_usuario_modificacion, getCurrentDateTime(), uk_turno]);
 
     return result.affectedRows > 0;
   }
@@ -282,20 +298,20 @@ class Turno {
   static async llamarSiguienteTurno(uk_consultorio) {
     // Primero cambiar cualquier turno "LLAMANDO" a "EN_ESPERA" para este consultorio
     await executeQuery(
-      'UPDATE Turno SET s_estado = "EN_ESPERA" WHERE uk_consultorio = ? AND s_estado = "LLAMANDO" AND d_fecha = CURDATE() AND ck_estado = "ACTIVO"',
-      [uk_consultorio]
+      'UPDATE Turno SET s_estado = "EN_ESPERA" WHERE uk_consultorio = ? AND s_estado = "LLAMANDO" AND DATE(d_fecha) = DATE(?) AND ck_estado = "ACTIVO"',
+      [uk_consultorio, getCurrentDate()]
     );
 
     // Obtener el siguiente turno en espera
     const query = `
       SELECT uk_turno 
       FROM Turno 
-      WHERE uk_consultorio = ? AND s_estado = 'EN_ESPERA' AND d_fecha = CURDATE() AND ck_estado = 'ACTIVO'
+      WHERE uk_consultorio = ? AND s_estado = 'EN_ESPERA' AND DATE(d_fecha) = DATE(?) AND ck_estado = 'ACTIVO'
       ORDER BY i_numero_turno ASC 
       LIMIT 1
     `;
 
-    const results = await executeQuery(query, [uk_consultorio]);
+    const results = await executeQuery(query, [uk_consultorio, getCurrentDate()]);
 
     if (results.length === 0) {
       return null; // No hay turnos en espera
@@ -321,10 +337,10 @@ class Turno {
         COUNT(CASE WHEN s_estado = 'CANCELADO' THEN 1 END) as cancelados,
         COUNT(CASE WHEN s_estado = 'NO_PRESENTE' THEN 1 END) as no_presente
       FROM Turno 
-      WHERE d_fecha = CURDATE() AND ck_estado = 'ACTIVO'
+      WHERE DATE(d_fecha) = DATE(?) AND ck_estado = 'ACTIVO'
     `;
 
-    const results = await executeQuery(query);
+    const results = await executeQuery(query, [getCurrentDate()]);
     return results[0];
   }
 
@@ -333,12 +349,12 @@ class Turno {
     const query = `
       UPDATE Turno 
       SET s_estado = 'CANCELADO',
-          d_fecha_cancelacion = NOW(),
+          d_fecha_cancelacion = ?,
           uk_usuario_modificacion = ?,
-          d_fecha_modificacion = NOW()
+          d_fecha_modificacion = ?
       WHERE uk_turno = ?
     `;
-    const result = await executeQuery(query, [uk_usuario_modificacion, uk_turno]);
+    const result = await executeQuery(query, [getCurrentDateTime(), uk_usuario_modificacion, getCurrentDateTime(), uk_turno]);
     return result.affectedRows > 0;
   }
 
@@ -347,12 +363,12 @@ class Turno {
     const query = `
       UPDATE Turno 
       SET s_estado = 'ATENDIDO',
-          d_fecha_atencion = NOW(),
+          d_fecha_atencion = ?,
           uk_usuario_modificacion = ?,
-          d_fecha_modificacion = NOW()
+          d_fecha_modificacion = ?
       WHERE uk_turno = ?
     `;
-    const result = await executeQuery(query, [uk_usuario_modificacion, uk_turno]);
+    const result = await executeQuery(query, [getCurrentDateTime(), uk_usuario_modificacion, getCurrentDateTime(), uk_turno]);
     return result.affectedRows > 0;
   }
 
@@ -362,10 +378,10 @@ class Turno {
       UPDATE Turno 
       SET s_estado = 'NO_PRESENTE',
           uk_usuario_modificacion = ?,
-          d_fecha_modificacion = NOW()
+          d_fecha_modificacion = ?
       WHERE uk_turno = ?
     `;
-    const result = await executeQuery(query, [uk_usuario_modificacion, uk_turno]);
+    const result = await executeQuery(query, [uk_usuario_modificacion, getCurrentDateTime(), uk_turno]);
     return result.affectedRows > 0;
   }
 
@@ -392,14 +408,14 @@ class Turno {
         c.i_numero_consultorio
       FROM Turno t
       JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
-      WHERE t.d_fecha = CURDATE() 
+      WHERE DATE(t.d_fecha) = DATE(?) 
       AND t.s_estado = 'LLAMANDO' 
       AND t.ck_estado = 'ACTIVO'
       ORDER BY t.i_numero_turno DESC
       LIMIT 1
     `;
 
-    const results = await executeQuery(query);
+    const results = await executeQuery(query, [getCurrentDate()]);
     if (results.length === 0) {
       return null;
     }
@@ -415,14 +431,14 @@ class Turno {
         c.i_numero_consultorio
       FROM Turno t
       JOIN Consultorio c ON t.uk_consultorio = c.uk_consultorio
-      WHERE t.d_fecha = CURDATE() 
+      WHERE DATE(t.d_fecha) = DATE(?) 
       AND t.s_estado IN ('LLAMANDO', 'ATENDIDO') 
       AND t.ck_estado = 'ACTIVO'
       ORDER BY t.i_numero_turno DESC
       LIMIT ${lim}
     `;
 
-    const results = await executeQuery(query);
+    const results = await executeQuery(query, [getCurrentDate()]);
     return results;
   }
 
@@ -432,10 +448,10 @@ class Turno {
       UPDATE Turno 
       SET s_observaciones = ?,
           uk_usuario_modificacion = ?,
-          d_fecha_modificacion = NOW()
+          d_fecha_modificacion = ?
       WHERE uk_turno = ?
     `;
-    const result = await executeQuery(query, [s_observaciones, uk_usuario_modificacion, uk_turno]);
+    const result = await executeQuery(query, [s_observaciones, uk_usuario_modificacion, getCurrentDateTime(), uk_turno]);
     return result.affectedRows > 0;
   }
 

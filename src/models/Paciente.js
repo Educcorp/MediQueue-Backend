@@ -1,4 +1,5 @@
 const { executeQuery } = require('../config/database');
+const { getCurrentDateTime } = require('../utils/dateUtils');
 const bcrypt = require('bcryptjs');
 
 class Paciente {
@@ -134,19 +135,19 @@ class Paciente {
         UPDATE Paciente 
         SET s_nombre = ?, s_apellido = ?, c_telefono = ?, d_fecha_nacimiento = ?, 
             s_password_hash = ?, s_email = ?,
-            uk_usuario_modificacion = ?, d_fecha_modificacion = NOW()
+            uk_usuario_modificacion = ?, d_fecha_modificacion = ?
         WHERE uk_paciente = ?
       `;
-      params = [s_nombre, s_apellido, c_telefono, d_fecha_nacimiento, s_password_hash, s_email, uk_usuario_modificacion, uk_paciente];
+      params = [s_nombre, s_apellido, c_telefono, d_fecha_nacimiento, s_password_hash, s_email, uk_usuario_modificacion, getCurrentDateTime(), uk_paciente];
     } else {
       query = `
         UPDATE Paciente 
         SET s_nombre = ?, s_apellido = ?, c_telefono = ?, d_fecha_nacimiento = ?, 
             s_email = ?,
-            uk_usuario_modificacion = ?, d_fecha_modificacion = NOW()
+            uk_usuario_modificacion = ?, d_fecha_modificacion = ?
         WHERE uk_paciente = ?
       `;
-      params = [s_nombre, s_apellido, c_telefono, d_fecha_nacimiento, s_email, uk_usuario_modificacion, uk_paciente];
+      params = [s_nombre, s_apellido, c_telefono, d_fecha_nacimiento, s_email, uk_usuario_modificacion, getCurrentDateTime(), uk_paciente];
     }
 
     const result = await executeQuery(query, params);
@@ -161,11 +162,11 @@ class Paciente {
       UPDATE Paciente 
       SET s_password_hash = ?, 
           uk_usuario_modificacion = ?, 
-          d_fecha_modificacion = NOW()
+          d_fecha_modificacion = ?
       WHERE uk_paciente = ?
     `;
 
-    const result = await executeQuery(query, [s_password_hash, uk_usuario_modificacion, uk_paciente]);
+    const result = await executeQuery(query, [s_password_hash, uk_usuario_modificacion, getCurrentDateTime(), uk_paciente]);
     return result.affectedRows > 0;
   }
 
@@ -175,10 +176,10 @@ class Paciente {
       UPDATE Paciente 
       SET ck_estado = 'INACTIVO',
           uk_usuario_modificacion = ?,
-          d_fecha_modificacion = NOW()
+          d_fecha_modificacion = ?
       WHERE uk_paciente = ?
     `;
-    const result = await executeQuery(query, [uk_usuario_modificacion, uk_paciente]);
+    const result = await executeQuery(query, [uk_usuario_modificacion, getCurrentDateTime(), uk_paciente]);
     return result.affectedRows > 0;
   }
 

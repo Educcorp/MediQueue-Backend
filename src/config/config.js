@@ -37,7 +37,6 @@ const config = {
   // Estados de turnos
   turnoEstados: {
     EN_ESPERA: 'En espera',
-    LLAMANDO: 'Llamando',
     ATENDIDO: 'Atendido',
     CANCELADO: 'Cancelado'
   }

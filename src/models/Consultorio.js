@@ -39,9 +39,9 @@ class Consultorio {
       INSERT INTO Consultorio (i_numero_consultorio, uk_area, uk_usuario_creacion) 
       VALUES (?, ?, ?)
     `;
-    
+
     await executeQuery(insertQuery, [i_numero_consultorio, uk_area, uk_usuario_creacion]);
-    
+
     // Obtener el UUID del consultorio recién creado
     const selectQuery = `
       SELECT uk_consultorio FROM Consultorio 
@@ -49,13 +49,13 @@ class Consultorio {
       ORDER BY d_fecha_creacion DESC 
       LIMIT 1
     `;
-    
+
     const result = await executeQuery(selectQuery, [i_numero_consultorio, uk_area]);
-    
+
     if (result.length === 0) {
       throw new Error('Error al obtener el consultorio creado');
     }
-    
+
     return result[0].uk_consultorio;
   }
 
@@ -219,6 +219,19 @@ class Consultorio {
       WHERE uk_consultorio = ?
     `;
     const result = await executeQuery(query, [uk_usuario_modificacion, uk_consultorio]);
+    return result.affectedRows > 0;
+  }
+
+  // Toggle estado - cambiar entre ACTIVO e INACTIVO
+  static async toggleEstado(uk_consultorio, nuevoEstado, uk_usuario_modificacion) {
+    const query = `
+      UPDATE Consultorio 
+      SET ck_estado = ?,
+          uk_usuario_modificacion = ?,
+          d_fecha_modificacion = NOW()
+      WHERE uk_consultorio = ?
+    `;
+    const result = await executeQuery(query, [nuevoEstado, uk_usuario_modificacion, uk_consultorio]);
     return result.affectedRows > 0;
   }
 

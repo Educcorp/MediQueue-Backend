@@ -166,6 +166,19 @@ router.put('/:uk_area/soft-delete',
 );
 
 /**
+ * @route   PUT /api/areas/:uk_area/toggle-estado
+ * @desc    Cambiar estado del área (ACTIVO <-> INACTIVO)
+ * @access  Private (Admin)
+ */
+router.put('/:uk_area/toggle-estado',
+  verifyToken,
+  requireAdmin,
+  getAreaValidation,
+  handleValidationErrors,
+  areaController.toggleEstadoArea
+);
+
+/**
  * @route   DELETE /api/areas/:uk_area
  * @desc    Eliminar área (hard delete)
  * @access  Private (Super Admin)

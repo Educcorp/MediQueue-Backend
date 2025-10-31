@@ -171,6 +171,45 @@ const softDeleteConsultorio = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Toggle estado - cambiar entre ACTIVO e INACTIVO
+ */
+const toggleEstadoConsultorio = asyncHandler(async (req, res) => {
+  const { uk_consultorio } = req.params;
+  const uk_usuario_modificacion = req.user?.uk_administrador || null;
+
+  // Verificar que el consultorio existe
+  const consultorio = await Consultorio.getById(uk_consultorio);
+  if (!consultorio) {
+    return responses.notFound(res, 'Consultorio no encontrado');
+  }
+
+  console.log('Estado actual del consultorio:', consultorio.ck_estado);
+
+  // Determinar el nuevo estado (normalizar el estado actual)
+  const estadoActual = consultorio.ck_estado?.trim();
+  const nuevoEstado = estadoActual === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+
+  console.log('Cambiando estado de', estadoActual, 'a', nuevoEstado);
+
+  try {
+    // Actualizar el estado
+    const updated = await Consultorio.toggleEstado(uk_consultorio, nuevoEstado, uk_usuario_modificacion);
+
+    if (!updated) {
+      return responses.error(res, 'No se pudo cambiar el estado del consultorio', 400);
+    }
+
+    // Obtener consultorio actualizado
+    const consultorioActualizado = await Consultorio.getById(uk_consultorio);
+
+    responses.success(res, consultorioActualizado.toJSON(), `Consultorio ${nuevoEstado === 'ACTIVO' ? 'activado' : 'desactivado'} exitosamente`);
+  } catch (error) {
+    console.error('Error en toggleEstadoConsultorio:', error);
+    throw error;
+  }
+});
+
+/**
  * Eliminar consultorio (hard delete)
  */
 const deleteConsultorio = asyncHandler(async (req, res) => {
@@ -367,6 +406,7 @@ module.exports = {
   getConsultoriosBasicos,
   updateConsultorio,
   softDeleteConsultorio,
+  toggleEstadoConsultorio,
   deleteConsultorio,
   getConsultoriosDisponibles,
   getEstadisticasTurnos,

@@ -13,12 +13,12 @@ const createArea = asyncHandler(async (req, res) => {
   const letraNormalizada = s_letra ? s_letra.toUpperCase() : null;
 
   // Crear área
-  const uk_area = await Area.create({ 
-    s_nombre_area, 
-    s_letra: letraNormalizada, 
-    s_color, 
-    s_icono, 
-    uk_usuario_creacion 
+  const uk_area = await Area.create({
+    s_nombre_area,
+    s_letra: letraNormalizada,
+    s_color,
+    s_icono,
+    uk_usuario_creacion
   });
 
   // Obtener área completa
@@ -123,12 +123,12 @@ const updateArea = asyncHandler(async (req, res) => {
   const letraNormalizada = s_letra ? s_letra.toUpperCase() : null;
 
   // Actualizar área
-  const updated = await Area.update(uk_area, { 
-    s_nombre_area, 
-    s_letra: letraNormalizada, 
-    s_color, 
-    s_icono, 
-    uk_usuario_modificacion 
+  const updated = await Area.update(uk_area, {
+    s_nombre_area,
+    s_letra: letraNormalizada,
+    s_color,
+    s_icono,
+    uk_usuario_modificacion
   });
 
   if (!updated) {
@@ -168,6 +168,45 @@ const softDeleteArea = asyncHandler(async (req, res) => {
     if (error.message.includes('consultorios asociados')) {
       return responses.error(res, error.message, 409);
     }
+    throw error;
+  }
+});
+
+/**
+ * Toggle estado - cambiar entre ACTIVO e INACTIVO
+ */
+const toggleEstadoArea = asyncHandler(async (req, res) => {
+  const { uk_area } = req.params;
+  const uk_usuario_modificacion = req.user?.uk_administrador || null;
+
+  // Verificar que el área existe
+  const area = await Area.getById(uk_area);
+  if (!area) {
+    return responses.notFound(res, 'Área no encontrada');
+  }
+
+  console.log('Estado actual del área:', area.ck_estado);
+
+  // Determinar el nuevo estado (normalizar el estado actual)
+  const estadoActual = area.ck_estado?.trim();
+  const nuevoEstado = estadoActual === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+
+  console.log('Cambiando estado de', estadoActual, 'a', nuevoEstado);
+
+  try {
+    // Actualizar el estado
+    const updated = await Area.toggleEstado(uk_area, nuevoEstado, uk_usuario_modificacion);
+
+    if (!updated) {
+      return responses.error(res, 'No se pudo cambiar el estado del área', 400);
+    }
+
+    // Obtener área actualizada
+    const areaActualizada = await Area.getById(uk_area);
+
+    responses.success(res, areaActualizada.toJSON(), `Área ${nuevoEstado === 'ACTIVO' ? 'activada' : 'desactivada'} exitosamente`);
+  } catch (error) {
+    console.error('Error en toggleEstadoArea:', error);
     throw error;
   }
 });
@@ -267,7 +306,7 @@ const getAreasWithCount = asyncHandler(async (req, res) => {
  */
 const getPersonalizationConfig = asyncHandler(async (req, res) => {
   const config = await Area.getPersonalizationConfig();
-  
+
   responses.success(res, config, 'Configuración de personalización obtenida exitosamente');
 });
 
@@ -285,9 +324,9 @@ const checkLetraDisponibilidad = asyncHandler(async (req, res) => {
   const letraNormalizada = letra.toUpperCase();
   const disponible = await Area.isLetraAvailable(letraNormalizada, uk_area);
 
-  responses.success(res, { 
-    letra: letraNormalizada, 
-    disponible 
+  responses.success(res, {
+    letra: letraNormalizada,
+    disponible
   }, `Letra ${disponible ? 'disponible' : 'no disponible'}`);
 });
 
@@ -301,6 +340,7 @@ module.exports = {
   searchAreas,
   updateArea,
   softDeleteArea,
+  toggleEstadoArea,
   deleteArea,
   getEstadisticasTurnos,
   getEstadisticasTurnosPorFecha,

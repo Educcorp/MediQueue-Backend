@@ -17,15 +17,15 @@ class Area {
   // Crear nueva área
   static async create(areaData) {
     const { s_nombre_area, s_letra, s_color, s_icono, uk_usuario_creacion } = areaData;
-    
+
     // Generar UUID explícitamente para poder devolverlo
     const insertQuery = `
       INSERT INTO Area (s_nombre_area, s_letra, s_color, s_icono, uk_usuario_creacion) 
       VALUES (?, ?, ?, ?, ?)
     `;
-    
+
     await executeQuery(insertQuery, [s_nombre_area, s_letra, s_color, s_icono, uk_usuario_creacion]);
-    
+
     // Obtener el UUID del área recién creada
     const selectQuery = `
       SELECT uk_area FROM Area 
@@ -33,13 +33,13 @@ class Area {
       ORDER BY d_fecha_creacion DESC 
       LIMIT 1
     `;
-    
+
     const result = await executeQuery(selectQuery, [s_nombre_area]);
-    
+
     if (result.length === 0) {
       throw new Error('Error al obtener el área creada');
     }
-    
+
     return result[0].uk_area;
   }
 
@@ -139,6 +139,19 @@ class Area {
     return result.affectedRows > 0;
   }
 
+  // Toggle estado - cambiar entre ACTIVO e INACTIVO
+  static async toggleEstado(uk_area, nuevoEstado, uk_usuario_modificacion) {
+    const query = `
+      UPDATE Area 
+      SET ck_estado = ?,
+          uk_usuario_modificacion = ?,
+          d_fecha_modificacion = NOW()
+      WHERE uk_area = ?
+    `;
+    const result = await executeQuery(query, [nuevoEstado, uk_usuario_modificacion, uk_area]);
+    return result.affectedRows > 0;
+  }
+
   // Eliminar área (hard delete - elimina consultorios y turnos en cascada)
   static async delete(uk_area) {
     // Obtener todos los consultorios del área
@@ -228,12 +241,12 @@ class Area {
   static async isLetraAvailable(s_letra, uk_area_exclude = null) {
     let query = 'SELECT uk_area FROM Area WHERE s_letra = ? AND ck_estado = "ACTIVO"';
     const params = [s_letra];
-    
+
     if (uk_area_exclude) {
       query += ' AND uk_area != ?';
       params.push(uk_area_exclude);
     }
-    
+
     const results = await executeQuery(query, params);
     return results.length === 0;
   }
@@ -260,7 +273,7 @@ class Area {
   // Obtener configuración completa para formularios frontend
   static async getPersonalizationConfig() {
     const letrasEnUso = await this.getLetrasEnUso();
-    
+
     // Colores predefinidos disponibles
     const coloresPredefinidos = [
       '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',

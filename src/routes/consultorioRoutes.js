@@ -204,6 +204,19 @@ router.put('/:uk_consultorio/soft-delete',
 );
 
 /**
+ * @route   PUT /api/consultorios/:uk_consultorio/toggle-estado
+ * @desc    Cambiar estado del consultorio (ACTIVO <-> INACTIVO)
+ * @access  Private (Admin)
+ */
+router.put('/:uk_consultorio/toggle-estado',
+  verifyToken,
+  requireAdmin,
+  getConsultorioValidation,
+  handleValidationErrors,
+  consultorioController.toggleEstadoConsultorio
+);
+
+/**
  * @route   DELETE /api/consultorios/:uk_consultorio
  * @desc    Eliminar consultorio (hard delete)
  * @access  Private (Super Admin)

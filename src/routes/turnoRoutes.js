@@ -4,6 +4,12 @@ const router = express.Router();
 const turnoController = require('../controllers/turnoController');
 const { verifyToken, optionalAuth, requireAdmin } = require('../middleware/auth');
 const { handleValidationErrors } = require('../validations/commonValidation');
+const { 
+  turnoCooldownMiddleware, 
+  getRateLimiterStats, 
+  clearIpCooldown,
+  clearAllCooldowns 
+} = require('../middleware/rateLimiter');
 const {
   createTurnoValidation,
   getTurnosValidation,
@@ -45,18 +51,20 @@ router.post('/with-paciente',
 /**
  * @route   POST /api/turnos/publico
  * @desc    Crear turno con paciente (para usuarios públicos)
- * @access  Public
+ * @access  Public (con rate limiting por IP)
  */
 router.post('/publico',
+  turnoCooldownMiddleware,
   turnoController.createTurnoPublico
 );
 
 /**
  * @route   POST /api/turnos/publico/auto
  * @desc    Crear turno con asignación automática de consultorio (para usuarios públicos)
- * @access  Public
+ * @access  Public (con rate limiting por IP)
  */
 router.post('/publico/auto',
+  turnoCooldownMiddleware,
   turnoController.createTurnoPublicoAuto
 );
 
@@ -286,6 +294,67 @@ router.delete('/:uk_turno',
   getTurnoValidation,
   handleValidationErrors,
   turnoController.deleteTurno
+);
+
+// =============================================
+// ENDPOINTS ADMINISTRATIVOS DE RATE LIMITING
+// =============================================
+
+/**
+ * @route   GET /api/turnos/admin/rate-limiter/stats
+ * @desc    Obtener estadísticas del rate limiter
+ * @access  Private (Admin)
+ */
+router.get('/admin/rate-limiter/stats',
+  verifyToken,
+  requireAdmin,
+  (req, res) => {
+    const stats = getRateLimiterStats();
+    res.json({
+      success: true,
+      message: 'Estadísticas del rate limiter obtenidas exitosamente',
+      data: stats
+    });
+  }
+);
+
+/**
+ * @route   DELETE /api/turnos/admin/rate-limiter/clear/:ip
+ * @desc    Limpiar cooldown de una IP específica
+ * @access  Private (Admin)
+ */
+router.delete('/admin/rate-limiter/clear/:ip',
+  verifyToken,
+  requireAdmin,
+  (req, res) => {
+    const { ip } = req.params;
+    const cleared = clearIpCooldown(ip);
+    res.json({
+      success: true,
+      message: cleared ? 
+        `Cooldown eliminado para IP: ${ip}` : 
+        `No se encontró cooldown para IP: ${ip}`,
+      data: { ip, cleared }
+    });
+  }
+);
+
+/**
+ * @route   DELETE /api/turnos/admin/rate-limiter/clear-all
+ * @desc    Limpiar todos los cooldowns
+ * @access  Private (Admin)
+ */
+router.delete('/admin/rate-limiter/clear-all',
+  verifyToken,
+  requireAdmin,
+  (req, res) => {
+    const count = clearAllCooldowns();
+    res.json({
+      success: true,
+      message: `${count} cooldown${count !== 1 ? 's' : ''} eliminado${count !== 1 ? 's' : ''}`,
+      data: { clearedCount: count }
+    });
+  }
 );
 
 module.exports = router;

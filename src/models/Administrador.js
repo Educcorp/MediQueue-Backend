@@ -1,5 +1,6 @@
 const { executeQuery } = require('../config/database');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 class Administrador {
   constructor(data) {
@@ -12,6 +13,9 @@ class Administrador {
     this.c_telefono = data.c_telefono;
     this.tipo_usuario = data.tipo_usuario || 1; // 1=Admin, 2=Supervisor
     this.ck_estado = data.ck_estado || 'ACTIVO';
+    this.b_email_verified = data.b_email_verified || false;
+    this.s_verification_token = data.s_verification_token;
+    this.d_verification_token_expires = data.d_verification_token_expires;
     this.d_fecha_creacion = data.d_fecha_creacion;
     this.d_fecha_modificacion = data.d_fecha_modificacion;
     this.uk_usuario_creacion = data.uk_usuario_creacion;
@@ -25,26 +29,39 @@ class Administrador {
     // Encriptar contraseña
     const s_password_hash = await bcrypt.hash(s_password, 10);
 
+    // Generar token de verificación
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+    // Generar UUID manualmente
+    const uuid = crypto.randomUUID();
+
     const query = `
       INSERT INTO Administrador (
-        s_nombre, s_apellido, s_email, s_usuario, s_password_hash, 
-        c_telefono, tipo_usuario, uk_usuario_creacion
+        uk_administrador, s_nombre, s_apellido, s_email, s_usuario, s_password_hash, 
+        c_telefono, tipo_usuario, b_email_verified, s_verification_token,
+        d_verification_token_expires, uk_usuario_creacion
       ) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const result = await executeQuery(query, [
-      s_nombre, s_apellido, s_email, s_usuario, s_password_hash,
-      c_telefono, tipo_usuario || 1, uk_usuario_creacion
+    await executeQuery(query, [
+      uuid, s_nombre, s_apellido, s_email, s_usuario, s_password_hash,
+      c_telefono, tipo_usuario || 1, false, verificationToken, tokenExpires,
+      uk_usuario_creacion
     ]);
-    return result.insertId;
+    
+    return {
+      insertId: uuid,
+      verificationToken: verificationToken
+    };
   }
 
   // Obtener todos los administradores activos
   static async getAll() {
     const query = `
       SELECT uk_administrador, s_nombre, s_apellido, s_email, s_usuario, 
-             c_telefono, tipo_usuario, d_fecha_creacion
+             c_telefono, tipo_usuario, b_email_verified, d_fecha_creacion
       FROM Administrador 
       WHERE ck_estado = 'ACTIVO'
       ORDER BY s_nombre, s_apellido
@@ -57,7 +74,7 @@ class Administrador {
   static async getAllWithInactive() {
     const query = `
       SELECT uk_administrador, s_nombre, s_apellido, s_email, s_usuario, 
-             c_telefono, tipo_usuario, ck_estado, d_fecha_creacion
+             c_telefono, tipo_usuario, ck_estado, b_email_verified, d_fecha_creacion
       FROM Administrador 
       ORDER BY s_nombre, s_apellido
     `;
@@ -213,6 +230,112 @@ class Administrador {
     return await bcrypt.compare(password, this.s_password_hash);
   }
 
+  // Obtener administrador por token de verificación
+  static async getByVerificationToken(token) {
+    const query = 'SELECT * FROM Administrador WHERE s_verification_token = ? AND d_verification_token_expires > NOW()';
+    const results = await executeQuery(query, [token]);
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    return new Administrador(results[0]);
+  }
+
+  // Verificar email del administrador
+  static async verifyEmail(token) {
+    const admin = await this.getByVerificationToken(token);
+    
+    if (!admin) {
+      return { success: false, message: 'Token inválido o expirado' };
+    }
+
+    const query = `
+      UPDATE Administrador 
+      SET b_email_verified = TRUE,
+          s_verification_token = NULL,
+          d_verification_token_expires = NULL,
+          d_fecha_modificacion = NOW()
+      WHERE uk_administrador = ?
+    `;
+
+    await executeQuery(query, [admin.uk_administrador]);
+    
+    return { 
+      success: true, 
+      message: 'Email verificado exitosamente',
+      admin: admin.toPublicJSON()
+    };
+  }
+
+  /**
+   * Buscar administradores que hayan sido verificados recientemente.
+   * Esto se utiliza como un fallback cuando el token ya fue consumido pero
+   * queremos confirmar en el backend que la cuenta quedó verificada.
+   * @param {number} seconds ventana en segundos para considerar "reciente"
+   */
+  static async getRecentlyVerified(seconds = 120) {
+    const cutoff = new Date(Date.now() - seconds * 1000);
+    const query = `
+      SELECT * FROM Administrador
+      WHERE b_email_verified = TRUE
+        AND d_fecha_modificacion >= ?
+      ORDER BY d_fecha_modificacion DESC
+      LIMIT 1
+    `;
+
+    const results = await executeQuery(query, [cutoff]);
+    if (!results || results.length === 0) return null;
+    
+    return this._fromDbRow(results[0]);
+  }
+
+  // Helper to build an Administrador-like object from a DB row
+  static _fromDbRow(row) {
+    return new Administrador({
+      uk_administrador: row.uk_administrador,
+      s_nombre: row.s_nombre,
+      s_apellido: row.s_apellido,
+      s_email: row.s_email,
+      s_usuario: row.s_usuario,
+      s_password_hash: row.s_password_hash,
+      c_telefono: row.c_telefono,
+      tipo_usuario: row.tipo_usuario,
+      ck_estado: row.ck_estado,
+      b_email_verified: row.b_email_verified,
+      s_verification_token: row.s_verification_token,
+      d_verification_token_expires: row.d_verification_token_expires,
+      d_fecha_creacion: row.d_fecha_creacion,
+      d_fecha_modificacion: row.d_fecha_modificacion,
+      uk_usuario_creacion: row.uk_usuario_creacion,
+      uk_usuario_modificacion: row.uk_usuario_modificacion
+    });
+  }
+
+  // Reenviar email de verificación (generar nuevo token)
+  static async resendVerificationEmail(uk_administrador) {
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+    const query = `
+      UPDATE Administrador 
+      SET s_verification_token = ?,
+          d_verification_token_expires = ?,
+          d_fecha_modificacion = NOW()
+      WHERE uk_administrador = ?
+    `;
+
+    await executeQuery(query, [verificationToken, tokenExpires, uk_administrador]);
+    
+    return verificationToken;
+  }
+
+  // Verificar contraseña
+  async verifyPassword(password) {
+    if (!this.s_password_hash) return false;
+    return await bcrypt.compare(password, this.s_password_hash);
+  }
+
   // Obtener estadísticas del administrador
   async getEstadisticas() {
     const query = `
@@ -247,6 +370,7 @@ class Administrador {
       s_usuario: this.s_usuario,
       c_telefono: this.c_telefono,
       tipo_usuario: this.tipo_usuario,
+      b_email_verified: this.b_email_verified,
       d_fecha_creacion: this.d_fecha_creacion
     };
   }

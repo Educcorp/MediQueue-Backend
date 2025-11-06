@@ -171,4 +171,31 @@ router.delete('/:uk_administrador',
     administradorController.deleteAdmin
 );
 
+/** 
+ * @route   GET /api/administradores/verify-email/:token
+ * @desc    Verificar email del administrador con token
+ * @access  Public
+ */
+// Endpoint público para consultar el estado del token (fallback)
+router.get('/verify-status/:token',
+    administradorController.verifyEmailStatus
+);
+
+router.get('/verify-email/:token',
+    administradorController.verifyEmail
+);
+
+/**
+ * @route   POST /api/administradores/:uk_administrador/resend-verification
+ * @desc    Reenviar email de verificaci�n
+ * @access  Private (Super Admin)
+ */
+router.post('/:uk_administrador/resend-verification',
+    verifyToken,
+    requireSuperAdmin,
+    getAdminValidation,
+    handleValidationErrors,
+    administradorController.resendVerificationEmail
+);
+
 module.exports = router;

@@ -1,6 +1,7 @@
 const Administrador = require('../models/Administrador');
 const responses = require('../utils/responses');
 const { asyncHandler } = require('../middleware/errorHandler');
+const emailService = require('../services/emailService');
 
 /**
  * Obtener todos los administradores activos
@@ -37,8 +38,8 @@ const createAdmin = asyncHandler(async (req, res) => {
         return responses.error(res, 'Ya existe un administrador con ese nombre de usuario', 409);
     }
 
-    // Crear administrador
-    const uk_administrador = await Administrador.create({
+    // Crear administrador con token de verificación
+    const result = await Administrador.create({
         s_nombre,
         s_apellido,
         s_email,
@@ -50,9 +51,30 @@ const createAdmin = asyncHandler(async (req, res) => {
     });
 
     // Obtener datos del administrador creado (sin password)
-    const newAdmin = await Administrador.getById(uk_administrador);
+    const newAdmin = await Administrador.getById(result.insertId);
 
-    responses.created(res, newAdmin.toPublicJSON(), 'Administrador creado exitosamente');
+    // Enviar email de verificación
+    try {
+        await emailService.sendVerificationEmail(
+            s_email,
+            `${s_nombre} ${s_apellido}`,
+            result.verificationToken
+        );
+        
+        responses.created(
+            res, 
+            newAdmin.toPublicJSON(), 
+            'Administrador creado exitosamente. Se ha enviado un email de verificación.'
+        );
+    } catch (emailError) {
+        console.error('Error al enviar email de verificación:', emailError);
+        // El administrador se creó pero el email falló
+        responses.created(
+            res, 
+            newAdmin.toPublicJSON(), 
+            'Administrador creado exitosamente, pero hubo un error al enviar el email de verificación. Contacte al administrador del sistema.'
+        );
+    }
 });
 
 /**
@@ -271,18 +293,36 @@ const deleteAdmin = asyncHandler(async (req, res) => {
         return responses.error(res, 'No se puede eliminar el último administrador del sistema', 400);
     }
 
-    // Verificar si el administrador tiene turnos asociados
-    try {
-        const hasTurnos = await Administrador.hasTurnos(uk_administrador);
-        if (hasTurnos) {
-            return responses.error(res, 'No se puede eliminar este administrador porque tiene turnos asociados', 409);
+    // Si el usuario no está verificado Y no tiene turnos, permitir eliminación directa
+    if (!existingAdmin.b_email_verified) {
+        console.log('Usuario no verificado, verificando si tiene turnos antes de eliminar:', existingAdmin.s_email);
+        
+        // Verificar si tiene turnos
+        try {
+            const hasTurnos = await Administrador.hasTurnos(uk_administrador);
+            if (hasTurnos) {
+                return responses.error(res, 'No se puede eliminar este usuario aunque no esté verificado porque tiene turnos asociados. Debe usar desactivación (soft delete) en su lugar.', 409);
+            }
+        } catch (checkError) {
+            console.error('Error verificando turnos:', checkError);
+            return responses.error(res, 'Error al verificar turnos asociados: ' + checkError.message, 500);
         }
-    } catch (checkError) {
-        console.log('Error verificando turnos asociados:', checkError);
-        // Continuar con la eliminación de todas formas
+
+        // No tiene turnos, proceder con eliminación
+        try {
+            const deleted = await Administrador.delete(uk_administrador);
+            if (deleted) {
+                return responses.success(res, null, 'Usuario sin verificar eliminado exitosamente');
+            } else {
+                return responses.error(res, 'No se pudo eliminar el usuario', 500);
+            }
+        } catch (deleteError) {
+            console.error('Error eliminando usuario no verificado:', deleteError);
+            return responses.error(res, 'Error al eliminar usuario: ' + deleteError.message, 500);
+        }
     }
 
-    // Eliminar administrador
+    // Intentar eliminar (el modelo intentará desenlazar o reasignar turnos si es posible)
     try {
         const deleted = await Administrador.delete(uk_administrador);
 
@@ -294,12 +334,18 @@ const deleteAdmin = asyncHandler(async (req, res) => {
     } catch (deleteError) {
         console.error('Error eliminando administrador:', deleteError);
 
-        // Manejo específico de error de foreign key
-        if (deleteError.code === 'ER_ROW_IS_REFERENCED_2') {
-            return responses.error(res, 'No se puede eliminar este administrador porque tiene turnos o datos asociados', 409);
+        // Si el modelo devolvió un mensaje específico sobre turnos, retornarlo
+        if (deleteError.message && deleteError.message.includes('turnos')) {
+            return responses.error(res, deleteError.message, 409);
         }
 
-        throw deleteError; // Re-lanzar otros errores para que los maneje el errorHandler global
+        // Manejo específico de errores de FK
+        if (deleteError.code === 'ER_ROW_IS_REFERENCED_2' || deleteError.code === 'ER_ROW_IS_REFERENCED') {
+            return responses.error(res, deleteError.message || 'No se puede eliminar este administrador porque tiene datos asociados', 409);
+        }
+
+        // Error genérico
+        return responses.error(res, 'Error al eliminar el administrador: ' + deleteError.message, 500);
     }
 });
 
@@ -340,7 +386,114 @@ const getAdminsWithStats = asyncHandler(async (req, res) => {
         })
     );
 
-    responses.success(res, adminsConStats, 'Administradores con estadísticas obtenidos exitosamente');
+        responses.success(res, adminsConStats, 'Administradores con estadísticas obtenidos exitosamente');
+});
+
+/**
+ * Verificar email del administrador
+ */
+const verifyEmail = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    console.log('🔍 [VERIFY EMAIL] Iniciando verificación para token:', token);
+
+    if (!token) {
+        console.log('❌ [VERIFY EMAIL] Token no proporcionado');
+        return responses.error(res, 'Token de verificación requerido', 400);
+    }
+
+    console.log('🔄 [VERIFY EMAIL] Llamando a Administrador.verifyEmail()...');
+    const result = await Administrador.verifyEmail(token);
+    console.log('📊 [VERIFY EMAIL] Resultado:', result);
+
+    if (!result.success) {
+        console.log('❌ [VERIFY EMAIL] Verificación fallida:', result.message);
+        return responses.error(res, result.message, 400);
+    }
+
+    console.log('✅ [VERIFY EMAIL] Verificación exitosa, enviando email de bienvenida...');
+    
+    // Enviar email de bienvenida
+    try {
+        await emailService.sendWelcomeEmail(
+            result.admin.s_email,
+            `${result.admin.s_nombre} ${result.admin.s_apellido}`
+        );
+        console.log('📧 [VERIFY EMAIL] Email de bienvenida enviado exitosamente');
+    } catch (emailError) {
+        console.error('⚠️ [VERIFY EMAIL] Error al enviar email de bienvenida:', emailError);
+        // No fallar la verificación si el email de bienvenida falla
+    }
+
+    console.log('✅ [VERIFY EMAIL] Enviando respuesta exitosa al frontend');
+    responses.success(res, result.admin, result.message);
+});
+
+/**
+ * Verificar estado de token (fallback)
+ * Si el token no existe, intenta detectar si la cuenta ya fue verificada recientemente
+ */
+const verifyEmailStatus = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    console.log('🔍 [VERIFY STATUS] Token recibido:', token);
+
+    if (!token) {
+        return responses.error(res, 'Token de verificación requerido', 400);
+    }
+
+    // Buscar por token
+    console.log('🔄 [VERIFY STATUS] Buscando token en BD...');
+    const adminByToken = await Administrador.getByVerificationToken(token);
+    if (adminByToken) {
+        console.log('✅ [VERIFY STATUS] Token encontrado, aún pendiente de verificación');
+        return responses.success(res, adminByToken.toPublicJSON(), 'Token válido, pendiente de verificación');
+    }
+
+    console.log('⚠️ [VERIFY STATUS] Token no encontrado, buscando verificación reciente...');
+    // Fallback: buscar si hubo una verificación reciente en la tabla
+    const recent = await Administrador.getRecentlyVerified(180); // 3 minutos
+    console.log('📊 [VERIFY STATUS] Usuario reciente:', recent ? recent.s_email : 'ninguno');
+    
+    if (recent && recent.b_email_verified) {
+        console.log('✅ [VERIFY STATUS] Encontrado usuario verificado recientemente');
+        return responses.success(res, recent.toPublicJSON(), 'Email verificado exitosamente');
+    }
+
+    console.log('❌ [VERIFY STATUS] No se encontró verificación reciente');
+    return responses.error(res, 'Token inválido o expirado', 400);
+});
+
+/**
+ * Reenviar email de verificación
+ */
+const resendVerificationEmail = asyncHandler(async (req, res) => {
+    const { uk_administrador } = req.params;
+
+    // Verificar que el administrador existe
+    const administrador = await Administrador.getById(uk_administrador);
+    if (!administrador) {
+        return responses.notFound(res, 'Administrador no encontrado');
+    }
+
+    // Verificar si ya está verificado
+    if (administrador.b_email_verified) {
+        return responses.error(res, 'El email ya ha sido verificado', 400);
+    }
+
+    // Generar nuevo token y enviar email
+    const verificationToken = await Administrador.resendVerificationEmail(uk_administrador);
+
+    try {
+        await emailService.sendVerificationEmail(
+            administrador.s_email,
+            `${administrador.s_nombre} ${administrador.s_apellido}`,
+            verificationToken
+        );
+
+        responses.success(res, null, 'Email de verificación reenviado exitosamente');
+    } catch (emailError) {
+        console.error('Error al reenviar email de verificación:', emailError);
+        return responses.error(res, 'Error al enviar el email de verificación', 500);
+    }
 });
 
 module.exports = {
@@ -356,5 +509,8 @@ module.exports = {
     softDeleteAdmin,
     deleteAdmin,
     getEstadisticas,
-    getAdminsWithStats
-};
+    getAdminsWithStats,
+    verifyEmail,
+    verifyEmailStatus,
+    resendVerificationEmail
+}

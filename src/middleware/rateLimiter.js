@@ -8,8 +8,7 @@
 const ipCooldowns = new Map();
 
 // Configuración del cooldown (en milisegundos)
-const COOLDOWN_DURATION = 60 * 1000; // 60 segundos (1 minuto)
-// Puedes cambiar a 30 segundos si prefieres: 30 * 1000
+const COOLDOWN_DURATION = 0; // Sin cooldown (deshabilitado)
 
 /**
  * Limpieza periódica de IPs antiguas del Map

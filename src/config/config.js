@@ -29,8 +29,10 @@ const config = {
       'http://127.0.0.1:3001',
       'http://127.0.0.1:5173',
       'https://mediqueue.up.railway.app',
-      'https://mediqueue-production.up.railway.app'
-    ],
+      'https://mediqueue-production.up.railway.app',
+      'https://medi-queue-six.vercel.app', // Vercel frontend
+      process.env.FRONTEND_URL // Variable de entorno adicional
+    ].filter(Boolean), // Filtrar valores undefined
     credentials: true
   },
 

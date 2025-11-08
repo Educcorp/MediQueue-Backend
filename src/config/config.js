@@ -31,6 +31,8 @@ const config = {
       'https://mediqueue.up.railway.app',
       'https://mediqueue-production.up.railway.app',
       'https://medi-queue-six.vercel.app', // Vercel frontend
+      'https://mediqueue.app', // Dominio personalizado
+      'https://www.mediqueue.app', // Dominio personalizado con www
       process.env.FRONTEND_URL // Variable de entorno adicional
     ].filter(Boolean), // Filtrar valores undefined
     credentials: true

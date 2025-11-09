@@ -31,6 +31,13 @@ class EmailService {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
+    console.log('📧 [EMAIL SERVICE] Preparando email de verificación...');
+    console.log('   → Destinatario:', email);
+    console.log('   → Nombre:', nombre);
+    console.log('   → From:', `"${this.fromName}" <${this.fromEmail}>`);
+    console.log('   → SMTP User:', process.env.SMTP_USER);
+    console.log('   → SMTP Host:', process.env.SMTP_HOST);
+
     const mailOptions = {
       from: `"${this.fromName}" <${this.fromEmail}>`,
       to: email,
@@ -158,12 +165,19 @@ class EmailService {
     };
 
     try {
+      console.log('📤 [EMAIL SERVICE] Enviando email...');
       const info = await this.transporter.sendMail(mailOptions);
-      console.log('Email de verificación enviado:', info.messageId);
+      console.log('✅ [EMAIL SERVICE] Email de verificación enviado exitosamente');
+      console.log('   → Message ID:', info.messageId);
+      console.log('   → Response:', info.response);
       return { success: true, messageId: info.messageId };
     } catch (error) {
-      console.error('Error al enviar email de verificación:', error);
-      throw new Error('Error al enviar el email de verificación');
+      console.error('❌ [EMAIL SERVICE] Error al enviar email de verificación');
+      console.error('   → Error completo:', error);
+      console.error('   → Error message:', error.message);
+      console.error('   → Error code:', error.code);
+      console.error('   → Error command:', error.command);
+      throw new Error(`Error al enviar el email de verificación: ${error.message}`);
     }
   }
 

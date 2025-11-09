@@ -8,6 +8,7 @@ const turnoRoutes = require('./turnoRoutes');
 const pacienteRoutes = require('./pacienteRoutes');
 const areaRoutes = require('./areaRoutes');
 const consultorioRoutes = require('./consultorioRoutes');
+const testRoutes = require('./testRoutes');
 
 /**
  * Ruta de salud del API
@@ -67,5 +68,6 @@ router.use('/turnos', turnoRoutes);
 router.use('/pacientes', pacienteRoutes);
 router.use('/areas', areaRoutes);
 router.use('/consultorios', consultorioRoutes);
+router.use('/test', testRoutes); // Rutas de prueba (remover en producción)
 
 module.exports = router;

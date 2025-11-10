@@ -4,7 +4,7 @@ const emailService = require('../services/emailService');
 
 /**
  * @route   POST /api/test/email
- * @desc    Probar configuración de email
+ * @desc    Probar configuración de email con Resend
  * @access  Public (temporal - quitar en producción)
  */
 router.post('/email', async (req, res) => {
@@ -18,15 +18,24 @@ router.post('/email', async (req, res) => {
             });
         }
 
-        // Verificar configuración SMTP
-        console.log('🔍 Verificando configuración SMTP...');
-        console.log('SMTP_HOST:', process.env.SMTP_HOST);
-        console.log('SMTP_PORT:', process.env.SMTP_PORT);
-        console.log('SMTP_USER:', process.env.SMTP_USER);
-        console.log('SMTP_FROM:', process.env.SMTP_FROM);
-        console.log('SMTP_SECURE:', process.env.SMTP_SECURE);
+        // Verificar configuración de Resend
+        console.log('🔍 Verificando configuración de Resend...');
+        console.log('RESEND_API_KEY:', process.env.RESEND_API_KEY ? `***${process.env.RESEND_API_KEY.slice(-4)}` : 'NO CONFIGURADO');
+        console.log('EMAIL_FROM:', process.env.EMAIL_FROM);
+        console.log('EMAIL_FROM_NAME:', process.env.EMAIL_FROM_NAME);
         console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
-        console.log('SMTP_PASS:', process.env.SMTP_PASS ? `***${process.env.SMTP_PASS.slice(-4)}` : 'NO CONFIGURADO');
+
+        // Verificar que la API key esté configurada
+        if (!process.env.RESEND_API_KEY) {
+            return res.status(500).json({
+                success: false,
+                message: 'RESEND_API_KEY no está configurada',
+                config: {
+                    from: process.env.EMAIL_FROM,
+                    fromName: process.env.EMAIL_FROM_NAME
+                }
+            });
+        }
 
         // Intentar verificar conexión
         const isConnected = await emailService.verifyConnection();
@@ -34,13 +43,10 @@ router.post('/email', async (req, res) => {
         if (!isConnected) {
             return res.status(500).json({
                 success: false,
-                message: 'No se pudo conectar al servidor SMTP',
+                message: 'No se pudo verificar la configuración de Resend',
                 config: {
-                    host: process.env.SMTP_HOST,
-                    port: process.env.SMTP_PORT,
-                    user: process.env.SMTP_USER,
-                    from: process.env.SMTP_FROM,
-                    secure: process.env.SMTP_SECURE
+                    from: process.env.EMAIL_FROM,
+                    fromName: process.env.EMAIL_FROM_NAME
                 }
             });
         }
@@ -56,14 +62,12 @@ router.post('/email', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Email de prueba enviado exitosamente',
+            message: 'Email de prueba enviado exitosamente con Resend',
             config: {
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT,
-                user: process.env.SMTP_USER,
-                from: process.env.SMTP_FROM,
-                secure: process.env.SMTP_SECURE,
-                frontendUrl: process.env.FRONTEND_URL
+                from: process.env.EMAIL_FROM,
+                fromName: process.env.EMAIL_FROM_NAME,
+                frontendUrl: process.env.FRONTEND_URL,
+                service: 'Resend'
             }
         });
 
@@ -75,10 +79,8 @@ router.post('/email', async (req, res) => {
             error: error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
             config: {
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT,
-                user: process.env.SMTP_USER,
-                from: process.env.SMTP_FROM
+                from: process.env.EMAIL_FROM,
+                fromName: process.env.EMAIL_FROM_NAME
             }
         });
     }
@@ -98,15 +100,12 @@ router.get('/config', (req, res) => {
             user: process.env.DB_USER,
             hasPassword: !!process.env.DB_PASSWORD
         },
-        smtp: {
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT,
-            secure: process.env.SMTP_SECURE,
-            user: process.env.SMTP_USER,
-            from: process.env.SMTP_FROM,
-            fromName: process.env.SMTP_FROM_NAME,
-            hasPassword: !!process.env.SMTP_PASS,
-            passwordLastChars: process.env.SMTP_PASS ? `***${process.env.SMTP_PASS.slice(-4)}` : 'NO SET'
+        email: {
+            service: 'Resend',
+            from: process.env.EMAIL_FROM,
+            fromName: process.env.EMAIL_FROM_NAME,
+            hasApiKey: !!process.env.RESEND_API_KEY,
+            apiKeyLastChars: process.env.RESEND_API_KEY ? `***${process.env.RESEND_API_KEY.slice(-4)}` : 'NO SET'
         },
         frontend: {
             url: process.env.FRONTEND_URL

@@ -326,18 +326,45 @@ class Administrador {
       WHERE uk_administrador = ?
     `;
 
-    const result = await executeQuery(query, [admin.uk_administrador]);
-    console.log('✅ [MODEL VERIFY] UPDATE ejecutado. Filas afectadas:', result.affectedRows);
-    
-    // Verificar que realmente se actualizó
-    const updatedAdmin = await this.getById(admin.uk_administrador);
-    console.log('✅ [MODEL VERIFY] Admin después del UPDATE - b_email_verified:', updatedAdmin?.b_email_verified);
-    
-    return { 
-      success: true, 
-      message: 'Email verificado exitosamente',
-      admin: admin.toPublicJSON()
-    };
+    try {
+      const result = await executeQuery(query, [admin.uk_administrador]);
+      console.log('✅ [MODEL VERIFY] UPDATE ejecutado. Resultado:', result);
+      console.log('✅ [MODEL VERIFY] Filas afectadas:', result.affectedRows);
+      console.log('✅ [MODEL VERIFY] Changed rows:', result.changedRows);
+      
+      if (result.affectedRows === 0) {
+        console.error('❌ [MODEL VERIFY] No se actualizó ninguna fila. Posible problema de UUID o permisos');
+        return { 
+          success: false, 
+          message: 'Error al actualizar el estado de verificación. Contacta al administrador.'
+        };
+      }
+      
+      // Verificar que realmente se actualizó - ESPERAR UN MOMENTO
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const updatedAdmin = await this.getById(admin.uk_administrador);
+      console.log('✅ [MODEL VERIFY] Admin después del UPDATE:');
+      console.log('   → b_email_verified:', updatedAdmin?.b_email_verified);
+      console.log('   → s_verification_token:', updatedAdmin?.s_verification_token ? 'Tiene token' : 'NULL');
+      
+      if (!updatedAdmin || !updatedAdmin.b_email_verified) {
+        console.error('❌ [MODEL VERIFY] La verificación en BD falló. Admin después del UPDATE:', updatedAdmin);
+        return {
+          success: false,
+          message: 'Error al verificar el email. Por favor intenta de nuevo.'
+        };
+      }
+      
+      return { 
+        success: true, 
+        message: 'Email verificado exitosamente',
+        admin: updatedAdmin.toPublicJSON()  // Retornar el admin ACTUALIZADO
+      };
+    } catch (error) {
+      console.error('❌ [MODEL VERIFY] Error durante el UPDATE:', error);
+      throw error;
+    }
   }
 
   /**

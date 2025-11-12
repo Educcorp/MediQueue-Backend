@@ -5,8 +5,14 @@ const { Resend } = require('resend');
  */
 class EmailService {
   constructor() {
-    // Configuración de Resend
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    // Configuración de Resend (solo si está la API key)
+    if (process.env.RESEND_API_KEY) {
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+    } else {
+      this.resend = null;
+      console.warn('⚠️ [EMAIL SERVICE] RESEND_API_KEY no configurada. El envío de correos con Resend estará deshabilitado.');
+    }
+
     this.fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
     this.fromName = process.env.EMAIL_FROM_NAME || 'MediQueue';
   }
@@ -19,17 +25,24 @@ class EmailService {
    * @returns {Promise}
    */
   async sendVerificationEmail(email, nombre, verificationToken) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://www.mediqueue.app';
     const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
     console.log('📧 [EMAIL SERVICE - RESEND] Preparando email de verificación...');
+    console.log('   → FRONTEND_URL desde env:', process.env.FRONTEND_URL);
+    console.log('   → frontendUrl usado:', frontendUrl);
+    console.log('   → verificationUrl generada:', verificationUrl);
     console.log('   → Destinatario:', email);
     console.log('   → Nombre:', nombre);
     console.log('   → From:', `${this.fromName} <${this.fromEmail}>`);
 
     try {
+      if (!this.resend) {
+        throw new Error('Resend API key no configurada. No se puede enviar el email de verificación.');
+      }
+
       console.log('📤 [EMAIL SERVICE - RESEND] Enviando email...');
-      
+
       const { data, error } = await this.resend.emails.send({
         from: `${this.fromName} <${this.fromEmail}>`,
         to: email,
@@ -123,12 +136,19 @@ class EmailService {
    * @returns {Promise}
    */
   async sendWelcomeEmail(email, nombre) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://www.mediqueue.app';
     const loginUrl = `${frontendUrl}/admin/login`;
 
     try {
+      if (!this.resend) {
+        throw new Error('Resend API key no configurada. No se puede enviar el email de bienvenida.');
+      }
+
       console.log('📤 [EMAIL SERVICE - RESEND] Enviando email de bienvenida...');
-      
+      console.log('   → FRONTEND_URL desde env:', process.env.FRONTEND_URL);
+      console.log('   → frontendUrl usado:', frontendUrl);
+      console.log('   → loginUrl generada:', loginUrl);
+
       const { data, error } = await this.resend.emails.send({
         from: `${this.fromName} <${this.fromEmail}>`,
         to: email,
@@ -226,8 +246,13 @@ class EmailService {
     try {
       // Resend no requiere verificación de conexión previa
       // La API valida automáticamente en cada request
+      if (!this.resend) {
+        console.warn('⚠️ [EMAIL SERVICE] Resend no está configurado (RESEND_API_KEY faltante)');
+        return false;
+      }
+
       console.log('✅ [EMAIL SERVICE - RESEND] Servicio de email configurado correctamente');
-      console.log('   → API Key configurada:', process.env.RESEND_API_KEY ? 'Sí' : 'No');
+      console.log('   → API Key configurada: Sí');
       return true;
     } catch (error) {
       console.error('❌ [EMAIL SERVICE - RESEND] Error al verificar configuración:', error);

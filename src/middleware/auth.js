@@ -189,12 +189,6 @@ const requireOwnershipOrAdmin = (resourceField = 'uk_administrador') => {
       return next();
     }
 
-    // Si es supervisor, puede acceder a recursos de su área
-    if (req.user.tipo_usuario === 2) {
-      // Aquí podrías implementar lógica específica para supervisores
-      return next();
-    }
-
     // Para otros casos, verificar que el recurso pertenece al usuario
     const resourceId = req.params[resourceField] || req.body[resourceField];
     if (resourceId && resourceId !== req.user.uk_administrador) {

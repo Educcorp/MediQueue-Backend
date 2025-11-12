@@ -60,8 +60,8 @@ const createAdminValidation = [
 
   body('tipo_usuario')
     .optional()
-    .isInt({ min: 1, max: 2 })
-    .withMessage('El tipo de usuario debe ser 1 (Administrador) o 2 (Supervisor)')
+    .isInt({ min: 1, max: 1 })
+    .withMessage('El tipo de usuario debe ser 1 (Administrador)')
 ];
 
 /**
@@ -132,8 +132,8 @@ const updateAdminValidation = [
 
   body('tipo_usuario')
     .optional()
-    .isInt({ min: 1, max: 2 })
-    .withMessage('El tipo de usuario debe ser 1 (Administrador) o 2 (Supervisor)')
+    .isInt({ min: 1, max: 1 })
+    .withMessage('El tipo de usuario debe ser 1 (Administrador)')
 ];
 
 /**

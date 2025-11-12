@@ -244,10 +244,49 @@ class Administrador {
 
   // Verificar email del administrador
   static async verifyEmail(token) {
+    // Primero, buscar el admin por el token activo
     const admin = await this.getByVerificationToken(token);
     
     if (!admin) {
+      // Si no se encuentra con token activo, verificar si ya fue verificado antes
+      // Buscamos por el histórico: admin con email verificado y sin token
+      const queryAlreadyVerified = `
+        SELECT uk_administrador, s_email, b_email_verified, s_nombre, s_apellido, d_fecha_modificacion
+        FROM Administrador 
+        WHERE b_email_verified = TRUE
+        AND s_verification_token IS NULL
+        ORDER BY d_fecha_modificacion DESC
+        LIMIT 10
+      `;
+      const verifiedAdmins = await executeQuery(queryAlreadyVerified);
+      
+      // Si hay admins verificados recientemente (últimos 30 días), asumir que el token fue usado
+      if (verifiedAdmins.length > 0) {
+        const recentlyVerified = verifiedAdmins.find(a => {
+          const modifiedDate = new Date(a.d_fecha_modificacion);
+          const daysSinceVerified = (Date.now() - modifiedDate.getTime()) / (1000 * 60 * 60 * 24);
+          return daysSinceVerified <= 30;
+        });
+        
+        if (recentlyVerified) {
+          return {
+            success: false,
+            message: 'Este enlace de verificación ya fue utilizado',
+            alreadyVerified: true
+          };
+        }
+      }
+      
       return { success: false, message: 'Token inválido o expirado' };
+    }
+
+    // Verificar si el email ya fue verificado (por si acaso)
+    if (admin.b_email_verified) {
+      return {
+        success: false,
+        message: 'Este correo electrónico ya ha sido verificado',
+        alreadyVerified: true
+      };
     }
 
     const query = `

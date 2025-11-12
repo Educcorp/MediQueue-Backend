@@ -407,6 +407,12 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
     if (!result.success) {
         console.log('❌ [VERIFY EMAIL] Verificación fallida:', result.message);
+        
+        // Si el email ya fue verificado, usar código 410 (Gone) en lugar de 400
+        if (result.alreadyVerified) {
+            return responses.error(res, result.message, 410);
+        }
+        
         return responses.error(res, result.message, 400);
     }
 

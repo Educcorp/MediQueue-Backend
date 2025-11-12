@@ -232,10 +232,27 @@ class Administrador {
 
   // Obtener administrador por token de verificación
   static async getByVerificationToken(token) {
+    console.log('🔍 [GET BY TOKEN] Buscando admin con token:', token?.substring(0, 10) + '...');
     const query = 'SELECT * FROM Administrador WHERE s_verification_token = ? AND d_verification_token_expires > NOW()';
     const results = await executeQuery(query, [token]);
+    
+    console.log('🔍 [GET BY TOKEN] Resultados encontrados:', results.length);
+    if (results.length > 0) {
+      console.log('🔍 [GET BY TOKEN] Email del admin encontrado:', results[0].s_email);
+      console.log('🔍 [GET BY TOKEN] b_email_verified actual:', results[0].b_email_verified);
+      console.log('🔍 [GET BY TOKEN] Token expira:', results[0].d_verification_token_expires);
+    }
 
     if (results.length === 0) {
+      // Verificar si existe el token pero expiró
+      const expiredQuery = 'SELECT * FROM Administrador WHERE s_verification_token = ?';
+      const expiredResults = await executeQuery(expiredQuery, [token]);
+      if (expiredResults.length > 0) {
+        console.log('⚠️ [GET BY TOKEN] Token encontrado pero expirado para:', expiredResults[0].s_email);
+        console.log('⚠️ [GET BY TOKEN] Expiró el:', expiredResults[0].d_verification_token_expires);
+      } else {
+        console.log('❌ [GET BY TOKEN] Token no existe en la base de datos');
+      }
       return null;
     }
 
@@ -244,8 +261,11 @@ class Administrador {
 
   // Verificar email del administrador
   static async verifyEmail(token) {
+    console.log('🔎 [MODEL VERIFY] Token recibido:', token);
+    
     // Primero, buscar el admin por el token activo
     const admin = await this.getByVerificationToken(token);
+    console.log('🔎 [MODEL VERIFY] Admin encontrado por token:', admin ? `Sí - ${admin.s_email}` : 'No');
     
     if (!admin) {
       // Si no se encuentra con token activo, verificar si ya fue verificado antes
@@ -259,6 +279,7 @@ class Administrador {
         LIMIT 10
       `;
       const verifiedAdmins = await executeQuery(queryAlreadyVerified);
+      console.log('🔎 [MODEL VERIFY] Admins verificados recientes:', verifiedAdmins.length);
       
       // Si hay admins verificados recientemente (últimos 30 días), asumir que el token fue usado
       if (verifiedAdmins.length > 0) {
@@ -269,6 +290,7 @@ class Administrador {
         });
         
         if (recentlyVerified) {
+          console.log('🔎 [MODEL VERIFY] Token ya fue usado:', recentlyVerified.s_email);
           return {
             success: false,
             message: 'Este enlace de verificación ya fue utilizado',
@@ -277,11 +299,14 @@ class Administrador {
         }
       }
       
+      console.log('❌ [MODEL VERIFY] Token inválido o expirado');
       return { success: false, message: 'Token inválido o expirado' };
     }
 
     // Verificar si el email ya fue verificado (por si acaso)
+    console.log('🔎 [MODEL VERIFY] Estado verificación actual:', admin.b_email_verified);
     if (admin.b_email_verified) {
+      console.log('⚠️ [MODEL VERIFY] Email ya estaba verificado');
       return {
         success: false,
         message: 'Este correo electrónico ya ha sido verificado',
@@ -289,6 +314,9 @@ class Administrador {
       };
     }
 
+    console.log('🔄 [MODEL VERIFY] Ejecutando UPDATE para verificar email...');
+    console.log('🔄 [MODEL VERIFY] uk_administrador:', admin.uk_administrador);
+    
     const query = `
       UPDATE Administrador 
       SET b_email_verified = TRUE,
@@ -298,7 +326,12 @@ class Administrador {
       WHERE uk_administrador = ?
     `;
 
-    await executeQuery(query, [admin.uk_administrador]);
+    const result = await executeQuery(query, [admin.uk_administrador]);
+    console.log('✅ [MODEL VERIFY] UPDATE ejecutado. Filas afectadas:', result.affectedRows);
+    
+    // Verificar que realmente se actualizó
+    const updatedAdmin = await this.getById(admin.uk_administrador);
+    console.log('✅ [MODEL VERIFY] Admin después del UPDATE - b_email_verified:', updatedAdmin?.b_email_verified);
     
     return { 
       success: true, 

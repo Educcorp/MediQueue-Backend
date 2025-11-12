@@ -319,7 +319,7 @@ class Administrador {
     
     const query = `
       UPDATE Administrador 
-      SET b_email_verified = TRUE,
+      SET b_email_verified = 1,
           s_verification_token = NULL,
           d_verification_token_expires = NULL,
           d_fecha_modificacion = NOW()
@@ -327,10 +327,14 @@ class Administrador {
     `;
 
     try {
+      console.log('🔄 [MODEL VERIFY] Query a ejecutar:', query);
+      console.log('🔄 [MODEL VERIFY] Parámetro UUID:', admin.uk_administrador);
+      
       const result = await executeQuery(query, [admin.uk_administrador]);
-      console.log('✅ [MODEL VERIFY] UPDATE ejecutado. Resultado:', result);
+      console.log('✅ [MODEL VERIFY] UPDATE ejecutado. Resultado completo:', JSON.stringify(result, null, 2));
       console.log('✅ [MODEL VERIFY] Filas afectadas:', result.affectedRows);
       console.log('✅ [MODEL VERIFY] Changed rows:', result.changedRows);
+      console.log('✅ [MODEL VERIFY] Info:', result.info);
       
       if (result.affectedRows === 0) {
         console.error('❌ [MODEL VERIFY] No se actualizó ninguna fila. Posible problema de UUID o permisos');

@@ -34,7 +34,16 @@ const testConnection = async () => {
 // Función para ejecutar consultas
 const executeQuery = async (query, params = []) => {
   try {
-    const [rows] = await pool.execute(query, params);
+    // Para SELECT, retornar solo los rows
+    // Para INSERT, UPDATE, DELETE, retornar el resultado completo con affectedRows
+    const [rows, fields] = await pool.execute(query, params);
+    
+    // Si es un comando de modificación (INSERT, UPDATE, DELETE), retornar rows que contiene affectedRows
+    if (rows.affectedRows !== undefined) {
+      return rows;
+    }
+    
+    // Si es SELECT, retornar los resultados
     return rows;
   } catch (error) {
     console.error('Error ejecutando consulta:', error);

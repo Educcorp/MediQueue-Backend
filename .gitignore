@@ -129,3 +129,8 @@ uploads/
 *.sqlite
 *.db
 src/env.txt
+
+# Test and debug files (temporary)
+test-*.html
+test-*.js
+verify-*.js

@@ -25,10 +25,12 @@ class EmailService {
    * @returns {Promise}
    */
   async sendVerificationEmail(email, nombre, verificationToken) {
+    // En producción usa el dominio, en desarrollo local debe estar configurado en .env
     const frontendUrl = process.env.FRONTEND_URL || 'https://www.mediqueue.app';
     const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
 
     console.log('📧 [EMAIL SERVICE - RESEND] Preparando email de verificación...');
+    console.log('   → NODE_ENV:', process.env.NODE_ENV || 'development');
     console.log('   → FRONTEND_URL desde env:', process.env.FRONTEND_URL);
     console.log('   → frontendUrl usado:', frontendUrl);
     console.log('   → verificationUrl generada:', verificationUrl);
@@ -104,6 +106,20 @@ class EmailService {
     </tr>
   </table>
   
+  <table cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:#e8f0fe;border-radius:4px;margin:0 0 20px 0;border-left:3px solid #4a90a4;">
+    <tr>
+      <td style="padding:12px 16px;">
+        <p style="margin:0 0 8px 0;font-size:13px;color:#202124;">
+          <strong>📋 Términos y Condiciones:</strong>
+        </p>
+        <p style="margin:0;font-size:12px;color:#5f6368;line-height:1.5;">
+          Al verificar tu correo electrónico, aceptas nuestros 
+          <a href="${frontendUrl}/privacy-policy" style="color:#1a73e8;text-decoration:none;">Términos de Privacidad y Cookies</a>.
+        </p>
+      </td>
+    </tr>
+  </table>
+  
   <p style="font-size:13px;color:#5f6368;margin:0;">
     Si no solicitaste esta cuenta, puedes ignorar este correo de forma segura.
   </p>
@@ -136,6 +152,7 @@ class EmailService {
    * @returns {Promise}
    */
   async sendWelcomeEmail(email, nombre) {
+    // En producción usa el dominio, en desarrollo local debe estar configurado en .env
     const frontendUrl = process.env.FRONTEND_URL || 'https://www.mediqueue.app';
     const loginUrl = `${frontendUrl}/admin/login`;
 
@@ -145,6 +162,7 @@ class EmailService {
       }
 
       console.log('📤 [EMAIL SERVICE - RESEND] Enviando email de bienvenida...');
+      console.log('   → NODE_ENV:', process.env.NODE_ENV || 'development');
       console.log('   → FRONTEND_URL desde env:', process.env.FRONTEND_URL);
       console.log('   → frontendUrl usado:', frontendUrl);
       console.log('   → loginUrl generada:', loginUrl);

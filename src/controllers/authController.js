@@ -23,6 +23,14 @@ const login = asyncHandler(async (req, res) => {
     return responses.unauthorized(res, 'Credenciales inválidas');
   }
 
+  // ✅ VERIFICAR QUE EL EMAIL ESTÉ VERIFICADO
+  if (!administrador.b_email_verified) {
+    console.log('⚠️ [LOGIN] Intento de login con email no verificado:', s_email);
+    return responses.error(res, 'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.', 403);
+  }
+
+  console.log('✅ [LOGIN] Login exitoso para usuario verificado:', s_email);
+
   // Generar token JWT
   const token = generateToken({
     uk_administrador: administrador.uk_administrador,
@@ -59,6 +67,14 @@ const loginByUsuario = asyncHandler(async (req, res) => {
   if (!isValidPassword) {
     return responses.unauthorized(res, 'Credenciales inválidas');
   }
+
+  // ✅ VERIFICAR QUE EL EMAIL ESTÉ VERIFICADO
+  if (!administrador.b_email_verified) {
+    console.log('⚠️ [LOGIN BY USUARIO] Intento de login con email no verificado:', s_usuario);
+    return responses.error(res, 'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.', 403);
+  }
+
+  console.log('✅ [LOGIN BY USUARIO] Login exitoso para usuario verificado:', s_usuario);
 
   // Generar token JWT
   const token = generateToken({

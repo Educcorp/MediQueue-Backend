@@ -1,33 +1,33 @@
 /**
  * Middleware para control de rate limiting (cooldown) en creación de turnos
- * Previene spam de creación de turnos por dispositivo (Device ID + IP)
+ * Previene spam de creación de turnos por IP
  */
 
-// Almacén en memoria para tracking de dispositivos y timestamps
+// Almacén en memoria para tracking de IPs y timestamps
 // En producción se recomienda usar Redis para persistencia y escalabilidad
-const deviceCooldowns = new Map();
+const ipCooldowns = new Map();
 
 // Configuración del cooldown (en milisegundos)
-const COOLDOWN_DURATION = 60 * 1000; // 60 segundos de cooldown
+const COOLDOWN_DURATION = 0; // Sin cooldown (deshabilitado)
 
 /**
- * Limpieza periódica de dispositivos antiguos del Map
+ * Limpieza periódica de IPs antiguas del Map
  * Ejecuta cada 5 minutos para evitar crecimiento infinito de memoria
  */
 const cleanupInterval = setInterval(() => {
   const now = Date.now();
   let cleanedCount = 0;
   
-  for (const [deviceKey, data] of deviceCooldowns.entries()) {
+  for (const [ip, data] of ipCooldowns.entries()) {
     // Eliminar entradas más antiguas que el doble del cooldown
     if (now - data.timestamp > COOLDOWN_DURATION * 2) {
-      deviceCooldowns.delete(deviceKey);
+      ipCooldowns.delete(ip);
       cleanedCount++;
     }
   }
   
   if (cleanedCount > 0) {
-    console.log(`🧹 [RATE-LIMITER] Limpiados ${cleanedCount} dispositivos antiguos del cooldown`);
+    console.log(`🧹 [RATE-LIMITER] Limpiadas ${cleanedCount} IPs antiguas del cooldown`);
   }
 }, 5 * 60 * 1000); // Cada 5 minutos
 
@@ -63,30 +63,6 @@ const getClientIp = (req) => {
 };
 
 /**
- * Obtiene el Device ID del cliente desde los headers
- */
-const getDeviceId = (req) => {
-  return req.headers['x-device-id'] || null;
-};
-
-/**
- * Genera una clave única combinando Device ID e IP
- * Si no hay Device ID, usa solo la IP (fallback)
- */
-const getDeviceKey = (req) => {
-  const deviceId = getDeviceId(req);
-  const clientIp = getClientIp(req);
-  
-  // Si tenemos Device ID, usarlo como clave principal
-  if (deviceId && deviceId !== 'undefined' && deviceId !== 'null') {
-    return `device:${deviceId}`;
-  }
-  
-  // Fallback: usar solo IP
-  return `ip:${clientIp}`;
-};
-
-/**
  * Formatea el tiempo restante en segundos de manera legible
  */
 const formatTimeRemaining = (milliseconds) => {
@@ -103,18 +79,16 @@ const formatTimeRemaining = (milliseconds) => {
 
 /**
  * Middleware de rate limiting para creación de turnos
- * Aplica cooldown compartido entre todas las áreas basado en Device ID
+ * Aplica cooldown compartido entre todas las áreas
  */
 const turnoCooldownMiddleware = (req, res, next) => {
-  const deviceKey = getDeviceKey(req);
   const clientIp = getClientIp(req);
-  const deviceId = getDeviceId(req);
   const now = Date.now();
   
-  console.log(`🔍 [RATE-LIMITER] Verificando cooldown para dispositivo: ${deviceKey.substring(0, 30)}... (IP: ${clientIp})`);
+  console.log(`🔍 [RATE-LIMITER] Verificando cooldown para IP: ${clientIp}`);
   
-  // Verificar si el dispositivo está en cooldown
-  const cooldownData = deviceCooldowns.get(deviceKey);
+  // Verificar si la IP está en cooldown
+  const cooldownData = ipCooldowns.get(clientIp);
   
   if (cooldownData) {
     const timeElapsed = now - cooldownData.timestamp;
@@ -125,7 +99,7 @@ const turnoCooldownMiddleware = (req, res, next) => {
       const timeRemainingFormatted = formatTimeRemaining(timeRemaining);
       const timeElapsedSeconds = Math.floor(timeElapsed / 1000);
       
-      console.log(`⏳ [RATE-LIMITER] Dispositivo ${deviceKey.substring(0, 30)}... en cooldown. Tiempo transcurrido: ${timeElapsedSeconds}s, Tiempo restante: ${Math.ceil(timeRemaining / 1000)}s`);
+      console.log(`⏳ [RATE-LIMITER] IP ${clientIp} en cooldown. Tiempo transcurrido: ${timeElapsedSeconds}s, Tiempo restante: ${Math.ceil(timeRemaining / 1000)}s`);
       
       return res.status(429).json({
         success: false,
@@ -140,19 +114,18 @@ const turnoCooldownMiddleware = (req, res, next) => {
     }
     
     // El cooldown ha expirado, eliminar del Map
-    console.log(`✅ [RATE-LIMITER] Cooldown expirado para dispositivo ${deviceKey.substring(0, 30)}...`);
-    deviceCooldowns.delete(deviceKey);
+    console.log(`✅ [RATE-LIMITER] Cooldown expirado para IP ${clientIp}`);
+    ipCooldowns.delete(clientIp);
   }
   
   // Registrar la creación del turno con timestamp actual
-  deviceCooldowns.set(deviceKey, {
+  ipCooldowns.set(clientIp, {
     timestamp: now,
-    deviceId: deviceId,
     ip: clientIp
   });
   
-  console.log(`✅ [RATE-LIMITER] Dispositivo ${deviceKey.substring(0, 30)}... autorizado. Cooldown activado por ${COOLDOWN_DURATION / 1000}s`);
-  console.log(`📊 [RATE-LIMITER] Dispositivos actualmente en cooldown: ${deviceCooldowns.size}`);
+  console.log(`✅ [RATE-LIMITER] IP ${clientIp} autorizada. Cooldown activado por ${COOLDOWN_DURATION / 1000}s`);
+  console.log(`📊 [RATE-LIMITER] IPs actualmente en cooldown: ${ipCooldowns.size}`);
   
   next();
 };
@@ -162,21 +135,15 @@ const turnoCooldownMiddleware = (req, res, next) => {
  */
 const getRateLimiterStats = () => {
   const now = Date.now();
-  const activeDevices = [];
+  const activeIps = [];
   
-  for (const [deviceKey, data] of deviceCooldowns.entries()) {
+  for (const [ip, data] of ipCooldowns.entries()) {
     const timeElapsed = now - data.timestamp;
     const timeRemaining = COOLDOWN_DURATION - timeElapsed;
     
     if (timeRemaining > 0) {
-      // Ocultar información sensible
-      const maskedIp = data.ip ? data.ip.replace(/(\d+\.\d+\.\d+)\.\d+/, '$1.xxx') : 'unknown';
-      const maskedDeviceId = data.deviceId ? data.deviceId.substring(0, 10) + '...' : 'no-device-id';
-      
-      activeDevices.push({
-        deviceKey: deviceKey.substring(0, 20) + '...',
-        deviceId: maskedDeviceId,
-        ip: maskedIp,
+      activeIps.push({
+        ip: ip.replace(/(\d+\.\d+\.\d+)\.\d+/, '$1.xxx'), // Ocultar último octeto por privacidad
         timeRemaining: Math.ceil(timeRemaining / 1000),
         lastCreated: new Date(data.timestamp).toISOString()
       });
@@ -185,35 +152,18 @@ const getRateLimiterStats = () => {
   
   return {
     cooldownDuration: COOLDOWN_DURATION / 1000,
-    activeDevicesCount: activeDevices.length,
-    totalTrackedDevices: deviceCooldowns.size,
-    activeDevices: activeDevices.sort((a, b) => a.timeRemaining - b.timeRemaining)
+    activeIpsCount: activeIps.length,
+    totalTrackedIps: ipCooldowns.size,
+    activeIps: activeIps.sort((a, b) => a.timeRemaining - b.timeRemaining)
   };
 };
 
 /**
- * Limpia el cooldown de un dispositivo específico (útil para testing o admin override)
- * Puede buscar por Device ID o por IP
+ * Limpia el cooldown de una IP específica (útil para testing o admin override)
  */
-const clearDeviceCooldown = (identifier) => {
-  // Intentar eliminar con diferentes formatos
-  const deviceKey = `device:${identifier}`;
-  const ipKey = `ip:${identifier}`;
-  
-  let deleted = deviceCooldowns.delete(deviceKey) || deviceCooldowns.delete(ipKey);
-  
-  // Si no se encuentra directamente, buscar por coincidencia parcial
-  if (!deleted) {
-    for (const [key, data] of deviceCooldowns.entries()) {
-      if (key.includes(identifier) || data.deviceId === identifier || data.ip === identifier) {
-        deviceCooldowns.delete(key);
-        deleted = true;
-        break;
-      }
-    }
-  }
-  
-  console.log(`🔓 [RATE-LIMITER] Cooldown ${deleted ? 'eliminado' : 'no encontrado'} para identificador: ${identifier}`);
+const clearIpCooldown = (ip) => {
+  const deleted = ipCooldowns.delete(ip);
+  console.log(`🔓 [RATE-LIMITER] Cooldown ${deleted ? 'eliminado' : 'no encontrado'} para IP: ${ip}`);
   return deleted;
 };
 
@@ -221,20 +171,16 @@ const clearDeviceCooldown = (identifier) => {
  * Limpia todos los cooldowns (útil para testing)
  */
 const clearAllCooldowns = () => {
-  const count = deviceCooldowns.size;
-  deviceCooldowns.clear();
-  console.log(`🗑️ [RATE-LIMITER] Limpiados ${count} cooldowns de dispositivos`);
+  const count = ipCooldowns.size;
+  ipCooldowns.clear();
+  console.log(`🗑️ [RATE-LIMITER] Limpiados ${count} cooldowns`);
   return count;
 };
-
-// Alias para compatibilidad con código existente
-const clearIpCooldown = clearDeviceCooldown;
 
 module.exports = {
   turnoCooldownMiddleware,
   getRateLimiterStats,
-  clearDeviceCooldown,
-  clearIpCooldown, // Alias para compatibilidad
+  clearIpCooldown,
   clearAllCooldowns,
   COOLDOWN_DURATION
 };

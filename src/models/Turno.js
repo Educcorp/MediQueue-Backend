@@ -26,6 +26,9 @@ class Turno {
     this.c_telefono_paciente = data.c_telefono_paciente;
     this.i_numero_consultorio = data.i_numero_consultorio;
     this.s_nombre_area = data.s_nombre_area;
+    this.s_letra = data.s_letra;
+    this.s_color = data.s_color;
+    this.s_icono = data.s_icono;
     this.s_nombre_administrador = data.s_nombre_administrador;
     this.s_apellido_administrador = data.s_apellido_administrador;
   }
@@ -181,6 +184,9 @@ class Turno {
         p.c_telefono as c_telefono_paciente,
         c.i_numero_consultorio,
         a.s_nombre_area,
+        a.s_letra,
+        a.s_color,
+        a.s_icono,
         CONCAT(ad.s_nombre, ' ', ad.s_apellido) as s_nombre_administrador
       FROM Turno t
       LEFT JOIN Paciente p ON t.uk_paciente = p.uk_paciente
@@ -205,6 +211,9 @@ class Turno {
         p.c_telefono as c_telefono_paciente,
         c.i_numero_consultorio,
         a.s_nombre_area,
+        a.s_letra,
+        a.s_color,
+        a.s_icono,
         CONCAT(ad.s_nombre, ' ', ad.s_apellido) as s_nombre_administrador
       FROM Turno t
       LEFT JOIN Paciente p ON t.uk_paciente = p.uk_paciente
@@ -233,6 +242,9 @@ class Turno {
         p.c_telefono as c_telefono_paciente,
         c.i_numero_consultorio,
         a.s_nombre_area,
+        a.s_letra,
+        a.s_color,
+        a.s_icono,
         CONCAT(ad.s_nombre, ' ', ad.s_apellido) as s_nombre_administrador
       FROM Turno t
       JOIN Paciente p ON t.uk_paciente = p.uk_paciente
@@ -488,6 +500,9 @@ class Turno {
         p.c_telefono as c_telefono_paciente,
         c.i_numero_consultorio,
         a.s_nombre_area,
+        a.s_letra,
+        a.s_color,
+        a.s_icono,
         CONCAT(ad.s_nombre, ' ', ad.s_apellido) as s_nombre_administrador
       FROM Turno t
       LEFT JOIN Paciente p ON t.uk_paciente = p.uk_paciente
@@ -517,6 +532,9 @@ class Turno {
       uk_consultorio: this.uk_consultorio,
       i_numero_consultorio: this.i_numero_consultorio,
       s_nombre_area: this.s_nombre_area,
+      s_letra: this.s_letra,
+      s_color: this.s_color,
+      s_icono: this.s_icono,
       uk_administrador: this.uk_administrador,
       s_nombre_administrador: this.s_nombre_administrador,
       s_observaciones: this.s_observaciones,

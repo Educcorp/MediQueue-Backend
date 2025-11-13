@@ -2,13 +2,14 @@
 
 ## 🎯 ¿Qué hace?
 
-Evita que una misma IP cree múltiples turnos en un período corto de tiempo (spam).
+Evita que un mismo dispositivo cree múltiples turnos en un período corto de tiempo (spam).
 
 ## ⚙️ Configuración Actual
 
 - **Tiempo de espera**: 60 segundos (1 minuto)
 - **Aplicado a**: Todos los endpoints públicos de creación de turnos
 - **Compartido**: Entre todas las áreas
+- **Identificación**: Device ID (fingerprint del dispositivo) + IP como fallback
 
 ## 🔧 Cambiar el Tiempo de Cooldown
 
@@ -31,9 +32,9 @@ const COOLDOWN_DURATION = 60 * 1000; // Cambia 60 por los segundos que desees
 GET /api/turnos/admin/rate-limiter/stats
 ```
 
-### Limpiar IP específica
+### Limpiar dispositivo específico (por Device ID o IP)
 ```bash
-DELETE /api/turnos/admin/rate-limiter/clear/192.168.1.100
+DELETE /api/turnos/admin/rate-limiter/clear/{device-id-o-ip}
 ```
 
 ### Limpiar todos los cooldowns
@@ -52,11 +53,13 @@ DELETE /api/turnos/admin/rate-limiter/clear-all
 Los logs aparecen en la consola del servidor con el prefijo `[RATE-LIMITER]`:
 
 ```
-✅ [RATE-LIMITER] IP 192.168.1.100 autorizada. Cooldown activado por 60s
-⏳ [RATE-LIMITER] IP 192.168.1.100 en cooldown. Tiempo restante: 30s
+✅ [RATE-LIMITER] Dispositivo device:abc123... autorizado. Cooldown activado por 60s
+⏳ [RATE-LIMITER] Dispositivo device:abc123... en cooldown. Tiempo restante: 30s
+📊 [RATE-LIMITER] Dispositivos actualmente en cooldown: 5
 ```
 
 ## 📖 Documentación Completa
 
-Ver archivo `RATE_LIMITER_DOCUMENTATION.md` para detalles técnicos completos.
+- **Guía técnica Device ID**: Ver `DEVICE_ID_IMPLEMENTATION.md`
+- **Documentación Rate Limiter**: Ver `RATE_LIMITER_DOCUMENTATION.md`
 

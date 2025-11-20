@@ -362,6 +362,22 @@ const getEstadisticasDelDia = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Obtener estadísticas para gráfica (por día, mes o año)
+ */
+const getEstadisticasGrafica = asyncHandler(async (req, res) => {
+    const { periodo } = req.query;
+
+    // Validar periodo
+    const periodosValidos = ['day', 'month', 'year'];
+    if (!periodo || !periodosValidos.includes(periodo)) {
+        return responses.error(res, 'Período no válido. Use: day, month o year', 400);
+    }
+
+    const estadisticas = await Turno.getEstadisticasGrafica(periodo);
+    responses.success(res, estadisticas, `Estadísticas de ${periodo} obtenidas exitosamente`);
+});
+
+/**
  * Obtener turnos por rango de fechas
  */
 const getTurnosByDateRange = asyncHandler(async (req, res) => {
@@ -641,6 +657,7 @@ module.exports = {
     updateObservaciones,
     deleteTurno,
     getEstadisticasDelDia,
+    getEstadisticasGrafica,
     getTurnosByDateRange,
 
     // Endpoints públicos

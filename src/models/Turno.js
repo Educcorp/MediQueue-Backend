@@ -356,6 +356,67 @@ class Turno {
     return results[0];
   }
 
+  // Obtener estadísticas para gráfica (por día, mes o año)
+  static async getEstadisticasGrafica(periodo = 'day') {
+    const hoy = getCurrentDate();
+    let query;
+    let params;
+
+    if (periodo === 'day') {
+      // Agrupar por hora del día actual
+      query = `
+        SELECT 
+          HOUR(CONCAT(d_fecha, ' ', t_hora)) as periodo,
+          COUNT(*) as total_turnos
+        FROM Turno
+        WHERE DATE(d_fecha) = DATE(?) AND ck_estado = 'ACTIVO'
+        GROUP BY HOUR(CONCAT(d_fecha, ' ', t_hora))
+        ORDER BY periodo ASC
+      `;
+      params = [hoy];
+    } else if (periodo === 'month') {
+      // Agrupar por día del mes actual
+      query = `
+        SELECT 
+          DAY(d_fecha) as periodo,
+          COUNT(*) as total_turnos
+        FROM Turno
+        WHERE YEAR(d_fecha) = YEAR(?) 
+          AND MONTH(d_fecha) = MONTH(?) 
+          AND ck_estado = 'ACTIVO'
+        GROUP BY DAY(d_fecha)
+        ORDER BY periodo ASC
+      `;
+      params = [hoy, hoy];
+    } else if (periodo === 'year') {
+      // Agrupar por mes del año actual
+      query = `
+        SELECT 
+          MONTH(d_fecha) as periodo,
+          COUNT(*) as total_turnos
+        FROM Turno
+        WHERE YEAR(d_fecha) = YEAR(?) AND ck_estado = 'ACTIVO'
+        GROUP BY MONTH(d_fecha)
+        ORDER BY periodo ASC
+      `;
+      params = [hoy];
+    } else {
+      throw new Error('Período no válido. Use: day, month o year');
+    }
+
+    const results = await executeQuery(query, params);
+    
+    // Formatear resultados para facilitar su uso en el frontend
+    return {
+      periodo,
+      datos: results.map(row => ({
+        periodo: row.periodo,
+        total: row.total_turnos
+      })),
+      fecha_consulta: hoy
+    };
+  }
+
   // Cancelar turno
   static async cancelar(uk_turno, uk_usuario_modificacion) {
     const query = `

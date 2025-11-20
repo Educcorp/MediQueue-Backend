@@ -120,6 +120,18 @@ router.get('/estadisticas',
 );
 
 /**
+ * @route   GET /api/turnos/estadisticas-grafica
+ * @desc    Obtener estadísticas para gráfica (por día, mes o año)
+ * @access  Private (Admin)
+ * @query   periodo: 'day' | 'month' | 'year'
+ */
+router.get('/estadisticas-grafica',
+  verifyToken,
+  requireAdmin,
+  turnoController.getEstadisticasGrafica
+);
+
+/**
  * @route   GET /api/turnos/rango-fechas
  * @desc    Obtener turnos por rango de fechas
  * @access  Private (Admin)

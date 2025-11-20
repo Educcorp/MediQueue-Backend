@@ -35,11 +35,12 @@ const createPacienteValidation = [
     }),
 
   body('d_fecha_nacimiento')
-    .notEmpty()
-    .withMessage('La fecha de nacimiento es requerida')
+    .optional()
     .isDate()
     .withMessage('La fecha de nacimiento debe ser una fecha válida')
     .custom((value) => {
+      if (!value) return true; // Permitir valores vacíos
+      
       const fecha = new Date(value);
       const hoy = new Date();
       const edad = hoy.getFullYear() - fecha.getFullYear();

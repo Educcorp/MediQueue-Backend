@@ -2,6 +2,7 @@ const Administrador = require('../models/Administrador');
 const responses = require('../utils/responses');
 const { generateToken } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
+const emailService = require('../services/emailService');
 
 /**
  * Iniciar sesión de administrador
@@ -245,6 +246,183 @@ const getEstadisticas = asyncHandler(async (req, res) => {
   }, 'Estadísticas obtenidas exitosamente');
 });
 
+/**
+ * Verificar si un email existe en el sistema y está verificado
+ */
+const verifyEmailExists = asyncHandler(async (req, res) => {
+  const { s_email } = req.body;
+
+  if (!s_email) {
+    return responses.error(res, 'El correo electrónico es requerido', 400);
+  }
+
+  // Buscar administrador por email
+  const administrador = await Administrador.getByEmail(s_email);
+
+  if (!administrador) {
+    console.log('⚠️ [VERIFY-EMAIL] Correo no encontrado:', s_email);
+    return responses.notFound(res, 'El correo electrónico no está registrado');
+  }
+
+  // Verificar que el email esté verificado
+  if (!administrador.b_email_verified) {
+    console.log('⚠️ [VERIFY-EMAIL] Email no verificado:', s_email);
+    return responses.error(res, 'Debe verificar su correo electrónico primero', 403);
+  }
+
+  console.log('✅ [VERIFY-EMAIL] Email encontrado y verificado:', s_email);
+
+  // Devolver datos básicos del administrador (sin información sensible)
+  responses.success(res, {
+    email: administrador.s_email,
+    nombre: administrador.s_nombre,
+    apellido: administrador.s_apellido,
+    usuario: administrador.s_usuario
+  }, 'Correo electrónico verificado exitosamente');
+});
+
+/**
+ * Confirmar identidad y otorgar acceso rápido
+ */
+const confirmIdentity = asyncHandler(async (req, res) => {
+  const { s_email } = req.body;
+
+  if (!s_email) {
+    return responses.error(res, 'El correo electrónico es requerido', 400);
+  }
+
+  // Buscar administrador por email
+  const administrador = await Administrador.getByEmail(s_email);
+
+  if (!administrador) {
+    console.log('⚠️ [CONFIRM-IDENTITY] Correo no encontrado:', s_email);
+    return responses.notFound(res, 'El correo electrónico no está registrado');
+  }
+
+  // Verificar que el email esté verificado
+  if (!administrador.b_email_verified) {
+    console.log('⚠️ [CONFIRM-IDENTITY] Email no verificado:', s_email);
+    return responses.error(res, 'Debe verificar su correo electrónico primero', 403);
+  }
+
+  console.log('✅ [CONFIRM-IDENTITY] Identidad confirmada para:', s_email);
+
+  // Generar token JWT
+  const token = generateToken({
+    uk_administrador: administrador.uk_administrador,
+    s_email: administrador.s_email,
+    s_nombre: administrador.s_nombre,
+    s_usuario: administrador.s_usuario,
+    tipo_usuario: administrador.tipo_usuario
+  });
+
+  // Responder con token y datos del usuario
+  responses.success(res, {
+    token,
+    user: administrador.toPublicJSON(),
+    expires_in: '24h'
+  }, 'Identidad confirmada exitosamente');
+});
+
+/**
+ * Solicitar recuperación de contraseña
+ */
+const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { s_email } = req.body;
+
+  if (!s_email) {
+    return responses.error(res, 'El correo electrónico es requerido', 400);
+  }
+
+  console.log('📧 [REQUEST PASSWORD RESET] Solicitud para:', s_email);
+
+  // Generar token de reseteo
+  const result = await Administrador.generatePasswordResetToken(s_email);
+
+  if (!result) {
+    console.log('⚠️ [REQUEST PASSWORD RESET] Email no encontrado:', s_email);
+    // Por seguridad, siempre respondemos con éxito incluso si el email no existe
+    return responses.success(res, null, 'Si el correo electrónico está registrado, recibirás un enlace de recuperación');
+  }
+
+  if (result.error === 'email_not_verified') {
+    console.log('⚠️ [REQUEST PASSWORD RESET] Email no verificado:', s_email);
+    return responses.error(res, 'Debes verificar tu correo electrónico antes de poder recuperar tu contraseña', 403);
+  }
+
+  // Enviar email de recuperación
+  try {
+    await emailService.sendPasswordResetEmail(
+      result.admin.s_email,
+      result.admin.s_nombre,
+      result.token
+    );
+
+    console.log('✅ [REQUEST PASSWORD RESET] Email de recuperación enviado a:', s_email);
+    responses.success(res, null, 'Se ha enviado un enlace de recuperación a tu correo electrónico');
+  } catch (error) {
+    console.error('❌ [REQUEST PASSWORD RESET] Error al enviar email:', error);
+    return responses.error(res, 'Error al enviar el correo de recuperación. Por favor, intenta nuevamente más tarde.', 500);
+  }
+});
+
+/**
+ * Verificar token de reseteo de contraseña
+ */
+const verifyResetToken = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return responses.error(res, 'Token no proporcionado', 400);
+  }
+
+  console.log('🔍 [VERIFY RESET TOKEN] Verificando token...');
+
+  // Buscar administrador por token
+  const administrador = await Administrador.getByPasswordResetToken(token);
+
+  if (!administrador) {
+    console.log('❌ [VERIFY RESET TOKEN] Token inválido o expirado');
+    return responses.error(res, 'El enlace de recuperación es inválido o ha expirado', 400);
+  }
+
+  console.log('✅ [VERIFY RESET TOKEN] Token válido para:', administrador.s_email);
+
+  responses.success(res, {
+    email: administrador.s_email,
+    valid: true
+  }, 'Token válido');
+});
+
+/**
+ * Resetear contraseña con token
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, s_password_nuevo } = req.body;
+
+  if (!token || !s_password_nuevo) {
+    return responses.error(res, 'Token y nueva contraseña son requeridos', 400);
+  }
+
+  if (s_password_nuevo.length < 6) {
+    return responses.error(res, 'La contraseña debe tener al menos 6 caracteres', 400);
+  }
+
+  console.log('🔄 [RESET PASSWORD] Reseteando contraseña...');
+
+  // Resetear contraseña
+  const result = await Administrador.resetPasswordWithToken(token, s_password_nuevo);
+
+  if (!result.success) {
+    console.log('❌ [RESET PASSWORD] Error:', result.message);
+    return responses.error(res, result.message, 400);
+  }
+
+  console.log('✅ [RESET PASSWORD] Contraseña actualizada para:', result.admin.s_email);
+
+  responses.success(res, null, 'Contraseña actualizada exitosamente');
+});
+
 module.exports = {
   login,
   loginByUsuario,
@@ -254,5 +432,10 @@ module.exports = {
   logout,
   verifyToken,
   createFirstAdmin,
-  getEstadisticas
+  getEstadisticas,
+  verifyEmailExists,
+  confirmIdentity,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword
 };

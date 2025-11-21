@@ -109,4 +109,49 @@ router.get('/verify',
   authController.verifyToken
 );
 
+/**
+ * @route   POST /api/auth/verify-email-exists
+ * @desc    Verificar si un correo existe y está verificado
+ * @access  Public
+ */
+router.post('/verify-email-exists',
+  authController.verifyEmailExists
+);
+
+/**
+ * @route   POST /api/auth/confirm-identity
+ * @desc    Confirmar identidad y otorgar acceso
+ * @access  Public
+ */
+router.post('/confirm-identity',
+  authController.confirmIdentity
+);
+
+/**
+ * @route   POST /api/auth/request-password-reset
+ * @desc    Solicitar recuperación de contraseña (envía email)
+ * @access  Public
+ */
+router.post('/request-password-reset',
+  authController.requestPasswordReset
+);
+
+/**
+ * @route   GET /api/auth/verify-reset-token
+ * @desc    Verificar token de reseteo de contraseña
+ * @access  Public
+ */
+router.get('/verify-reset-token',
+  authController.verifyResetToken
+);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Resetear contraseña con token
+ * @access  Public
+ */
+router.post('/reset-password',
+  authController.resetPassword
+);
+
 module.exports = router;

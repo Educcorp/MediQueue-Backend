@@ -433,6 +433,109 @@ class Administrador {
     return verificationToken;
   }
 
+  // Generar token de reseteo de contraseña
+  static async generatePasswordResetToken(s_email) {
+    console.log('🔑 [GENERATE RESET TOKEN] Generando token para:', s_email);
+    
+    // Buscar administrador por email
+    const admin = await this.getByEmail(s_email);
+    if (!admin) {
+      console.log('❌ [GENERATE RESET TOKEN] Administrador no encontrado');
+      return null;
+    }
+
+    // Verificar que el email esté verificado
+    if (!admin.b_email_verified) {
+      console.log('⚠️ [GENERATE RESET TOKEN] Email no verificado');
+      return { error: 'email_not_verified' };
+    }
+
+    // Generar token de reseteo
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpires = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hora
+
+    const query = `
+      UPDATE Administrador 
+      SET s_reset_password_token = ?,
+          d_reset_password_expires = ?,
+          d_fecha_modificacion = NOW()
+      WHERE uk_administrador = ?
+    `;
+
+    await executeQuery(query, [resetToken, tokenExpires, admin.uk_administrador]);
+    
+    console.log('✅ [GENERATE RESET TOKEN] Token generado exitosamente');
+    return {
+      token: resetToken,
+      admin: admin
+    };
+  }
+
+  // Obtener administrador por token de reseteo de contraseña
+  static async getByPasswordResetToken(token) {
+    console.log('🔍 [GET BY RESET TOKEN] Buscando admin con token:', token?.substring(0, 10) + '...');
+    const query = 'SELECT * FROM Administrador WHERE s_reset_password_token = ? AND d_reset_password_expires > NOW()';
+    const results = await executeQuery(query, [token]);
+    
+    console.log('🔍 [GET BY RESET TOKEN] Resultados encontrados:', results.length);
+    
+    if (results.length === 0) {
+      // Verificar si existe el token pero expiró
+      const expiredQuery = 'SELECT * FROM Administrador WHERE s_reset_password_token = ?';
+      const expiredResults = await executeQuery(expiredQuery, [token]);
+      if (expiredResults.length > 0) {
+        console.log('⚠️ [GET BY RESET TOKEN] Token encontrado pero expirado para:', expiredResults[0].s_email);
+        console.log('⚠️ [GET BY RESET TOKEN] Expiró el:', expiredResults[0].d_reset_password_expires);
+      } else {
+        console.log('❌ [GET BY RESET TOKEN] Token no existe en la base de datos');
+      }
+      return null;
+    }
+
+    return new Administrador(results[0]);
+  }
+
+  // Resetear contraseña usando token
+  static async resetPasswordWithToken(token, newPassword) {
+    console.log('🔄 [RESET PASSWORD] Reseteando contraseña con token...');
+    
+    // Buscar admin por token
+    const admin = await this.getByPasswordResetToken(token);
+    if (!admin) {
+      console.log('❌ [RESET PASSWORD] Token inválido o expirado');
+      return { success: false, message: 'Token inválido o expirado' };
+    }
+
+    console.log('✅ [RESET PASSWORD] Token válido para:', admin.s_email);
+
+    // Hashear nueva contraseña
+    const s_password_hash = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña y limpiar token
+    const query = `
+      UPDATE Administrador 
+      SET s_password_hash = ?,
+          s_reset_password_token = NULL,
+          d_reset_password_expires = NULL,
+          d_fecha_modificacion = NOW()
+      WHERE uk_administrador = ?
+    `;
+
+    const result = await executeQuery(query, [s_password_hash, admin.uk_administrador]);
+    
+    if (result.affectedRows === 0) {
+      console.error('❌ [RESET PASSWORD] No se pudo actualizar la contraseña');
+      return { success: false, message: 'Error al actualizar la contraseña' };
+    }
+
+    console.log('✅ [RESET PASSWORD] Contraseña actualizada exitosamente');
+    return { 
+      success: true, 
+      message: 'Contraseña actualizada exitosamente',
+      admin: admin.toPublicJSON()
+    };
+  }
+
   // Verificar contraseña
   async verifyPassword(password) {
     if (!this.s_password_hash) return false;

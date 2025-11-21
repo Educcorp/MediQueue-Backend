@@ -352,6 +352,12 @@ const requestPasswordReset = asyncHandler(async (req, res) => {
 
   // Enviar email de recuperación
   try {
+    // Verificar que el servicio de email esté configurado
+    if (!process.env.RESEND_API_KEY) {
+      console.error('❌ [REQUEST PASSWORD RESET] RESEND_API_KEY no configurada');
+      return responses.error(res, 'El servicio de recuperación de contraseña no está configurado. Contacta al administrador del sistema.', 503);
+    }
+
     await emailService.sendPasswordResetEmail(
       result.admin.s_email,
       result.admin.s_nombre,
@@ -362,6 +368,7 @@ const requestPasswordReset = asyncHandler(async (req, res) => {
     responses.success(res, null, 'Se ha enviado un enlace de recuperación a tu correo electrónico');
   } catch (error) {
     console.error('❌ [REQUEST PASSWORD RESET] Error al enviar email:', error);
+    console.error('   Detalles del error:', error.message);
     return responses.error(res, 'Error al enviar el correo de recuperación. Por favor, intenta nuevamente más tarde.', 500);
   }
 });

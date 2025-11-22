@@ -44,7 +44,7 @@ async function checkResetColumns() {
     `;
 
     const allColumns = await executeQuery(tableStructure);
-    
+
     console.log('📋 Estructura completa de la tabla Administrador:');
     console.log('═══════════════════════════════════════════════════');
     allColumns.forEach((col, index) => {

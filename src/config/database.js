@@ -12,7 +12,10 @@ const dbConfig = {
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  keepAliveInitialDelay: 0,
+  // Configuración de zona horaria para sincronizar con Node.js
+  // Usa 'Z' para UTC o 'local' para usar la zona horaria del sistema
+  timezone: 'Z' // UTC - Soluciona problema de timezone entre Node.js y MySQL
 };
 
 // Crear pool de conexiones

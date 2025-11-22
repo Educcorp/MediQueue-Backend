@@ -11,6 +11,11 @@ const {
   updateProfileValidation,
   changePasswordValidation
 } = require('../validations/administradorValidation');
+const {
+  requestPasswordResetValidation,
+  verifyResetTokenValidation,
+  resetPasswordValidation
+} = require('../validations/passwordResetValidation');
 
 /**
  * @route   POST /api/auth/login
@@ -133,6 +138,8 @@ router.post('/confirm-identity',
  * @access  Public
  */
 router.post('/request-password-reset',
+  requestPasswordResetValidation,
+  handleValidationErrors,
   authController.requestPasswordReset
 );
 
@@ -142,6 +149,8 @@ router.post('/request-password-reset',
  * @access  Public
  */
 router.get('/verify-reset-token',
+  verifyResetTokenValidation,
+  handleValidationErrors,
   authController.verifyResetToken
 );
 
@@ -151,6 +160,8 @@ router.get('/verify-reset-token',
  * @access  Public
  */
 router.post('/reset-password',
+  resetPasswordValidation,
+  handleValidationErrors,
   authController.resetPassword
 );
 

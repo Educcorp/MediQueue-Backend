@@ -49,8 +49,8 @@ class Paciente {
   // Obtener todos los pacientes activos
   static async getAll() {
     const query = `
-      SELECT uk_paciente, s_nombre, s_apellido, c_telefono, 
-             d_fecha_nacimiento, s_email, d_fecha_creacion
+      SELECT uk_paciente, s_nombre, s_apellido, c_telefono,
+             d_fecha_nacimiento, s_email, ck_estado, d_fecha_creacion
       FROM Paciente 
       WHERE ck_estado = 'ACTIVO'
       ORDER BY s_nombre, s_apellido
@@ -275,6 +275,8 @@ class Paciente {
       c_telefono: this.c_telefono,
       d_fecha_nacimiento: this.d_fecha_nacimiento,
       s_email: this.s_email,
+      ck_estado: this.ck_estado,
+      d_fecha_creacion: this.d_fecha_creacion,
       edad: this.getEdad()
     };
   }

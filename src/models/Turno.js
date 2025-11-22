@@ -467,6 +467,30 @@ class Turno {
     return result.affectedRows > 0;
   }
 
+  // Actualizar turno completo (paciente y/o observaciones)
+  static async update(uk_turno, data, uk_usuario_modificacion) {
+    const { uk_paciente, s_observaciones } = data;
+    
+    const query = `
+      UPDATE Turno 
+      SET uk_paciente = ?,
+          s_observaciones = ?,
+          uk_usuario_modificacion = ?,
+          d_fecha_modificacion = ?
+      WHERE uk_turno = ?
+    `;
+
+    const result = await executeQuery(query, [
+      uk_paciente,
+      s_observaciones,
+      uk_usuario_modificacion,
+      getCurrentDateTime(),
+      uk_turno
+    ]);
+
+    return result.affectedRows > 0;
+  }
+
   // Obtener turnos por rango de fechas
   static async getByDateRange(fecha_inicio, fecha_fin, filters = {}) {
     let whereConditions = [

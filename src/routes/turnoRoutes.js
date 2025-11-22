@@ -232,6 +232,19 @@ router.put('/:uk_turno/observaciones',
 );
 
 /**
+ * @route   PUT /api/turnos/:uk_turno
+ * @desc    Actualizar turno (paciente y/o observaciones)
+ * @access  Private (Admin)
+ */
+router.put('/:uk_turno',
+  verifyToken,
+  requireAdmin,
+  getTurnoValidation,
+  handleValidationErrors,
+  turnoController.updateTurno
+);
+
+/**
  * @route   POST /api/turnos/consultorio/:uk_consultorio/siguiente
  * @desc    Llamar siguiente turno en un consultorio
  * @access  Private (Admin)

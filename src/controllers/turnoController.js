@@ -314,6 +314,44 @@ const updateObservaciones = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Actualizar turno completo (paciente y/o observaciones)
+ */
+const updateTurno = asyncHandler(async (req, res) => {
+    const { uk_turno } = req.params;
+    const { uk_paciente, s_observaciones } = req.body;
+    const uk_usuario_modificacion = req.user.uk_administrador;
+
+    // Verificar que el turno existe
+    const turno = await Turno.getById(uk_turno);
+    if (!turno) {
+        return responses.notFound(res, 'Turno no encontrado');
+    }
+
+    // Si se proporciona paciente, verificar que existe
+    if (uk_paciente) {
+        const paciente = await Paciente.getById(uk_paciente);
+        if (!paciente) {
+            return responses.notFound(res, 'Paciente no encontrado');
+        }
+    }
+
+    // Actualizar turno
+    const updated = await Turno.update(uk_turno, {
+        uk_paciente: uk_paciente || null,
+        s_observaciones: s_observaciones || turno.s_observaciones
+    }, uk_usuario_modificacion);
+
+    if (!updated) {
+        return responses.error(res, 'No se pudo actualizar el turno', 400);
+    }
+
+    // Obtener turno actualizado
+    const turnoActualizado = await Turno.getById(uk_turno);
+
+    responses.success(res, turnoActualizado, 'Turno actualizado exitosamente');
+});
+
+/**
  * Eliminar turno
  */
 const deleteTurno = asyncHandler(async (req, res) => {
@@ -639,6 +677,7 @@ module.exports = {
     marcarAtendido,
     marcarNoPresente,
     updateObservaciones,
+    updateTurno,
     deleteTurno,
     getEstadisticasDelDia,
     getTurnosByDateRange,

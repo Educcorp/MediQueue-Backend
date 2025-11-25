@@ -51,20 +51,18 @@ router.post('/with-paciente',
 /**
  * @route   POST /api/turnos/publico
  * @desc    Crear turno con paciente (para usuarios públicos)
- * @access  Public (con rate limiting por IP)
+ * @access  Public
  */
 router.post('/publico',
-  turnoCooldownMiddleware,
   turnoController.createTurnoPublico
 );
 
 /**
  * @route   POST /api/turnos/publico/auto
  * @desc    Crear turno con asignación automática de consultorio (para usuarios públicos)
- * @access  Public (con rate limiting por IP)
+ * @access  Public
  */
 router.post('/publico/auto',
-  turnoCooldownMiddleware,
   turnoController.createTurnoPublicoAuto
 );
 

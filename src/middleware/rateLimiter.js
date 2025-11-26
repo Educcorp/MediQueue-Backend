@@ -8,7 +8,7 @@
 const deviceCooldowns = new Map();
 
 // Configuración del cooldown (en milisegundos)
-const COOLDOWN_DURATION = 60 * 1000; // 60 segundos de cooldown
+const COOLDOWN_DURATION = 20 * 1000; // 60 segundos de cooldown
 
 /**
  * Limpieza periódica de dispositivos antiguos del Map

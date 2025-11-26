@@ -54,6 +54,7 @@ router.post('/with-paciente',
  * @access  Public
  */
 router.post('/publico',
+  turnoCooldownMiddleware,
   turnoController.createTurnoPublico
 );
 
@@ -63,6 +64,7 @@ router.post('/publico',
  * @access  Public
  */
 router.post('/publico/auto',
+  turnoCooldownMiddleware,
   turnoController.createTurnoPublicoAuto
 );
 
